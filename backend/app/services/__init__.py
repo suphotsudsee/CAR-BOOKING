@@ -23,6 +23,19 @@ from .vehicle import (
     update_vehicle,
     update_vehicle_status,
 )
+from .driver import (
+    create_driver,
+    delete_driver,
+    get_driver_by_employee_code,
+    get_driver_by_id,
+    get_driver_by_license_number,
+    get_driver_by_user_id,
+    get_expiring_driver_licenses,
+    list_drivers,
+    update_driver,
+    update_driver_availability,
+    update_driver_status,
+)
 
 __all__ = [
     "change_user_password",
@@ -44,4 +57,15 @@ __all__ = [
     "store_vehicle_document",
     "update_vehicle",
     "update_vehicle_status",
+    "create_driver",
+    "delete_driver",
+    "get_driver_by_employee_code",
+    "get_driver_by_id",
+    "get_driver_by_license_number",
+    "get_driver_by_user_id",
+    "get_expiring_driver_licenses",
+    "list_drivers",
+    "update_driver",
+    "update_driver_availability",
+    "update_driver_status",
 ]

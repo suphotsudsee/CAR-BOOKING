@@ -15,6 +15,15 @@ from .user import (
     UserRoleUpdate,
     UserUpdate,
 )
+from .driver import (
+    DriverAvailabilitySchedule,
+    DriverAvailabilityUpdate,
+    DriverCreate,
+    DriverLicenseExpiryNotification,
+    DriverRead,
+    DriverStatusUpdate,
+    DriverUpdate,
+)
 from .vehicle import (
     VehicleCreate,
     VehicleDocumentExpiryNotification,
@@ -36,6 +45,13 @@ __all__ = [
     "UserRead",
     "UserRoleUpdate",
     "UserUpdate",
+    "DriverAvailabilityUpdate",
+    "DriverAvailabilitySchedule",
+    "DriverCreate",
+    "DriverLicenseExpiryNotification",
+    "DriverRead",
+    "DriverStatusUpdate",
+    "DriverUpdate",
     "VehicleCreate",
     "VehicleDocumentExpiryNotification",
     "VehicleDocumentUploadResponse",
