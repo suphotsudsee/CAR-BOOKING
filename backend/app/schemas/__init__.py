@@ -32,6 +32,12 @@ from .vehicle import (
     VehicleStatusUpdate,
     VehicleUpdate,
 )
+from .booking import (
+    BookingRequestCreate,
+    BookingRequestRead,
+    BookingRequestUpdate,
+    BookingStatusUpdate,
+)
 
 __all__ = [
     "LoginRequest",
@@ -58,4 +64,8 @@ __all__ = [
     "VehicleRead",
     "VehicleStatusUpdate",
     "VehicleUpdate",
+    "BookingRequestCreate",
+    "BookingRequestRead",
+    "BookingRequestUpdate",
+    "BookingStatusUpdate",
 ]
