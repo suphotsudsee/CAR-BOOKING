@@ -7,7 +7,12 @@ from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
 
-from app.models.vehicle import FuelType, VehicleStatus, VehicleType
+from app.models.vehicle import (
+    FuelType,
+    VehicleDocumentType,
+    VehicleStatus,
+    VehicleType,
+)
 
 
 def _normalise_basic_text(value: str, field_display: str) -> str:
@@ -149,5 +154,29 @@ class VehicleRead(VehicleBase):
     registration_number: str
     created_at: datetime
     updated_at: datetime
+    tax_document_path: Optional[str] = None
+    insurance_document_path: Optional[str] = None
+    inspection_document_path: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class VehicleDocumentUploadResponse(BaseModel):
+    """Response returned after successfully uploading a vehicle document."""
+
+    vehicle_id: int
+    document_type: VehicleDocumentType
+    document_path: str
+    document_url: str
+
+
+class VehicleDocumentExpiryNotification(BaseModel):
+    """Notification payload for expiring vehicle documents."""
+
+    vehicle_id: int
+    registration_number: str
+    document_type: VehicleDocumentType
+    expiry_date: date
+    days_until_expiry: int
+    document_path: Optional[str] = None
+    document_url: Optional[str] = None

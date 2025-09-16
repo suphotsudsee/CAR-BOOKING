@@ -172,6 +172,9 @@ def upgrade() -> None:
         sa.Column("tax_expiry_date", sa.Date(), nullable=True),
         sa.Column("insurance_expiry_date", sa.Date(), nullable=True),
         sa.Column("inspection_expiry_date", sa.Date(), nullable=True),
+        sa.Column("tax_document_path", sa.String(length=255), nullable=True),
+        sa.Column("insurance_document_path", sa.String(length=255), nullable=True),
+        sa.Column("inspection_document_path", sa.String(length=255), nullable=True),
         sa.Column("notes", sa.Text(), nullable=True),
         sa.Column(
             "created_at",

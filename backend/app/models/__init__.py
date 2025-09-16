@@ -2,7 +2,13 @@
 
 from .base import Base, TimestampMixin
 from .user import User, UserRole
-from .vehicle import Vehicle, VehicleType, VehicleStatus, FuelType
+from .vehicle import (
+    Vehicle,
+    VehicleType,
+    VehicleStatus,
+    FuelType,
+    VehicleDocumentType,
+)
 from .driver import Driver, DriverStatus
 from .booking import BookingRequest, BookingStatus, VehiclePreference
 from .approval import Approval, ApprovalDecision
@@ -18,6 +24,7 @@ __all__ = [
     "VehicleType",
     "VehicleStatus",
     "FuelType",
+    "VehicleDocumentType",
     "Driver",
     "DriverStatus",
     "BookingRequest",
