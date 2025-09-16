@@ -23,6 +23,14 @@ from .vehicle import (
     update_vehicle,
     update_vehicle_status,
 )
+from .booking import (
+    create_booking_request,
+    delete_booking_request,
+    get_booking_request_by_id,
+    list_booking_requests,
+    transition_booking_status,
+    update_booking_request,
+)
 from .driver import (
     create_driver,
     delete_driver,
@@ -60,6 +68,12 @@ __all__ = [
     "store_vehicle_document",
     "update_vehicle",
     "update_vehicle_status",
+    "create_booking_request",
+    "delete_booking_request",
+    "get_booking_request_by_id",
+    "list_booking_requests",
+    "transition_booking_status",
+    "update_booking_request",
     "create_driver",
     "delete_driver",
     "get_driver_conflicting_assignments",
