@@ -2,17 +2,31 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Optional
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
+from typing import Iterable, Optional
 
 from sqlalchemy import Select, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.booking import BookingRequest, BookingStatus, VehiclePreference
+from app.models.vehicle import Vehicle, VehicleStatus, VehicleType
 from app.schemas.booking import BookingRequestCreate, BookingRequestUpdate
+from app.services.vehicle import (
+    get_vehicle_conflicting_assignments,
+    is_vehicle_available,
+)
 
 _EDITABLE_STATUSES: frozenset[BookingStatus] = frozenset(
     {BookingStatus.DRAFT, BookingStatus.REQUESTED}
+)
+
+_NON_BLOCKING_BOOKING_STATUSES: frozenset[BookingStatus] = frozenset(
+    {
+        BookingStatus.CANCELLED,
+        BookingStatus.COMPLETED,
+        BookingStatus.REJECTED,
+    }
 )
 
 _ALLOWED_TRANSITIONS: dict[BookingStatus, frozenset[BookingStatus]] = {
@@ -44,6 +58,67 @@ def _validate_window(start: datetime, end: datetime) -> None:
     if (start.tzinfo is None) != (end.tzinfo is None):
         msg = "Start and end datetimes must both be naive or both timezone-aware"
         raise ValueError(msg)
+
+
+@dataclass(slots=True)
+class AlternativeBookingSuggestion:
+    """Suggested vehicle allocation for an alternative booking window."""
+
+    vehicle_id: int
+    registration_number: str
+    start_datetime: datetime
+    end_datetime: datetime
+    reason: str
+
+
+async def get_conflicting_booking_requests(
+    session: AsyncSession,
+    *,
+    start: datetime,
+    end: datetime,
+    exclude_booking_id: Optional[int] = None,
+    requester_id: Optional[int] = None,
+) -> list[BookingRequest]:
+    """Return booking requests that overlap with the supplied time window."""
+
+    _validate_window(start, end)
+
+    stmt: Select[tuple[BookingRequest]] = (
+        select(BookingRequest)
+        .where(BookingRequest.start_datetime < end)
+        .where(BookingRequest.end_datetime > start)
+        .where(BookingRequest.status.notin_(_NON_BLOCKING_BOOKING_STATUSES))
+        .order_by(BookingRequest.start_datetime, BookingRequest.id)
+    )
+
+    if exclude_booking_id is not None:
+        stmt = stmt.where(BookingRequest.id != exclude_booking_id)
+
+    if requester_id is not None:
+        stmt = stmt.where(BookingRequest.requester_id == requester_id)
+
+    result = await session.execute(stmt)
+    return list(result.scalars().all())
+
+
+async def has_conflicting_booking_requests(
+    session: AsyncSession,
+    *,
+    start: datetime,
+    end: datetime,
+    exclude_booking_id: Optional[int] = None,
+    requester_id: Optional[int] = None,
+) -> bool:
+    """Return ``True`` when there are bookings that clash with the window."""
+
+    conflicts = await get_conflicting_booking_requests(
+        session,
+        start=start,
+        end=end,
+        exclude_booking_id=exclude_booking_id,
+        requester_id=requester_id,
+    )
+    return bool(conflicts)
 
 
 async def get_booking_request_by_id(
@@ -216,11 +291,145 @@ async def transition_booking_status(
     return booking_request
 
 
+async def _list_candidate_vehicles(
+    session: AsyncSession,
+    *,
+    vehicle_type: Optional[VehicleType] = None,
+    exclude_vehicle_ids: frozenset[int],
+) -> list[Vehicle]:
+    """Return active vehicles that match the supplied filters."""
+
+    stmt: Select[tuple[Vehicle]] = select(Vehicle).where(
+        Vehicle.status == VehicleStatus.ACTIVE
+    )
+
+    if vehicle_type is not None:
+        stmt = stmt.where(Vehicle.vehicle_type == vehicle_type)
+
+    if exclude_vehicle_ids:
+        stmt = stmt.where(Vehicle.id.notin_(tuple(exclude_vehicle_ids)))
+
+    stmt = stmt.order_by(Vehicle.id)
+    result = await session.execute(stmt)
+    return list(result.scalars().all())
+
+
+async def _find_next_available_slot(
+    session: AsyncSession,
+    *,
+    vehicle: Vehicle,
+    desired_start: datetime,
+    duration: timedelta,
+    exclude_booking_id: Optional[int],
+    max_attempts: int = 5,
+) -> Optional[tuple[datetime, datetime]]:
+    """Return the earliest available window on *vehicle* after *desired_start*."""
+
+    candidate_start = desired_start
+
+    for _ in range(max_attempts):
+        candidate_end = candidate_start + duration
+        conflicts = await get_vehicle_conflicting_assignments(
+            session,
+            vehicle_id=vehicle.id,
+            start=candidate_start,
+            end=candidate_end,
+            exclude_booking_id=exclude_booking_id,
+        )
+
+        if not conflicts:
+            return candidate_start, candidate_end
+
+        candidate_start = max(
+            conflict.booking_request.end_datetime for conflict in conflicts
+        )
+
+    return None
+
+
+async def suggest_alternative_bookings(
+    session: AsyncSession,
+    *,
+    start: datetime,
+    end: datetime,
+    vehicle_type: Optional[VehicleType] = None,
+    exclude_vehicle_ids: Optional[Iterable[int]] = None,
+    exclude_booking_id: Optional[int] = None,
+    limit: int = 3,
+) -> list[AlternativeBookingSuggestion]:
+    """Suggest alternative vehicles or time slots for the requested window."""
+
+    if limit <= 0:
+        return []
+
+    _validate_window(start, end)
+
+    vehicle_exclusions = frozenset(exclude_vehicle_ids or ())
+    duration = end - start
+    candidates = await _list_candidate_vehicles(
+        session,
+        vehicle_type=vehicle_type,
+        exclude_vehicle_ids=vehicle_exclusions,
+    )
+
+    suggestions: list[AlternativeBookingSuggestion] = []
+
+    for vehicle in candidates:
+        if len(suggestions) >= limit:
+            break
+
+        if await is_vehicle_available(
+            session,
+            vehicle=vehicle,
+            start=start,
+            end=end,
+            exclude_booking_id=exclude_booking_id,
+        ):
+            suggestions.append(
+                AlternativeBookingSuggestion(
+                    vehicle_id=vehicle.id,
+                    registration_number=vehicle.registration_number,
+                    start_datetime=start,
+                    end_datetime=end,
+                    reason="Vehicle available for the requested window",
+                )
+            )
+            continue
+
+        next_window = await _find_next_available_slot(
+            session,
+            vehicle=vehicle,
+            desired_start=start,
+            duration=duration,
+            exclude_booking_id=exclude_booking_id,
+        )
+
+        if next_window is None:
+            continue
+
+        alt_start, alt_end = next_window
+
+        suggestions.append(
+            AlternativeBookingSuggestion(
+                vehicle_id=vehicle.id,
+                registration_number=vehicle.registration_number,
+                start_datetime=alt_start,
+                end_datetime=alt_end,
+                reason="Vehicle available at an alternative time slot",
+            )
+        )
+
+    return suggestions
+
+
 __all__ = [
     "create_booking_request",
     "delete_booking_request",
+    "get_conflicting_booking_requests",
     "get_booking_request_by_id",
+    "has_conflicting_booking_requests",
     "list_booking_requests",
+    "suggest_alternative_bookings",
     "transition_booking_status",
     "update_booking_request",
 ]
