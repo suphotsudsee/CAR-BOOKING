@@ -7,7 +7,14 @@ from .auth import (
     TokenPayload,
     TokenResponse,
 )
-from .user import UserCreate, UserRead
+from .user import (
+    UserCreate,
+    UserPasswordChange,
+    UserProfileUpdate,
+    UserRead,
+    UserRoleUpdate,
+    UserUpdate,
+)
 
 __all__ = [
     "LoginRequest",
@@ -16,5 +23,9 @@ __all__ = [
     "TokenPayload",
     "TokenResponse",
     "UserCreate",
+    "UserPasswordChange",
+    "UserProfileUpdate",
     "UserRead",
+    "UserRoleUpdate",
+    "UserUpdate",
 ]
