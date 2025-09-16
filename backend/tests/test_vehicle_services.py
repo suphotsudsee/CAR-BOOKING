@@ -1,11 +1,19 @@
+from datetime import date, timedelta
+
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.vehicle import FuelType, VehicleStatus, VehicleType
+from app.models.vehicle import (
+    FuelType,
+    VehicleDocumentType,
+    VehicleStatus,
+    VehicleType,
+)
 from app.schemas import VehicleCreate, VehicleUpdate
 from app.services import (
     create_vehicle,
     delete_vehicle,
+    get_expiring_vehicle_documents,
     get_vehicle_by_id,
     list_vehicles,
     update_vehicle,
@@ -216,3 +224,68 @@ async def test_update_vehicle_status(async_session: AsyncSession) -> None:
     )
 
     assert updated.status == VehicleStatus.MAINTENANCE
+
+
+@pytest.mark.asyncio
+async def test_get_expiring_vehicle_documents(async_session: AsyncSession) -> None:
+    today = date.today()
+
+    vehicle_one = await create_vehicle(
+        async_session,
+        VehicleCreate(
+            registration_number="B 9999 III",
+            vehicle_type=VehicleType.SEDAN,
+            brand="Mazda",
+            model="3",
+            seating_capacity=4,
+            fuel_type=FuelType.GASOLINE,
+            tax_expiry_date=today + timedelta(days=5),
+            inspection_expiry_date=today + timedelta(days=7),
+        ),
+    )
+
+    vehicle_two = await create_vehicle(
+        async_session,
+        VehicleCreate(
+            registration_number="B 0001 JJJ",
+            vehicle_type=VehicleType.VAN,
+            brand="Hyundai",
+            model="H1",
+            seating_capacity=7,
+            fuel_type=FuelType.DIESEL,
+            insurance_expiry_date=today + timedelta(days=1),
+        ),
+    )
+
+    await create_vehicle(
+        async_session,
+        VehicleCreate(
+            registration_number="B 0002 KKK",
+            vehicle_type=VehicleType.SEDAN,
+            brand="Honda",
+            model="City",
+            seating_capacity=4,
+            fuel_type=FuelType.GASOLINE,
+            tax_expiry_date=today + timedelta(days=20),
+        ),
+    )
+
+    reminders = await get_expiring_vehicle_documents(async_session, within_days=10)
+    assert [
+        (reminder.vehicle_id, reminder.document_type, reminder.days_until_expiry)
+        for reminder in reminders
+    ] == [
+        (vehicle_two.id, VehicleDocumentType.INSURANCE, 1),
+        (vehicle_one.id, VehicleDocumentType.TAX, 5),
+        (vehicle_one.id, VehicleDocumentType.INSPECTION, 7),
+    ]
+
+    assert all(reminder.document_path is None for reminder in reminders)
+
+
+@pytest.mark.asyncio
+async def test_get_expiring_vehicle_documents_negative_window(
+    async_session: AsyncSession,
+) -> None:
+    with pytest.raises(ValueError):
+        await get_expiring_vehicle_documents(async_session, within_days=-1)

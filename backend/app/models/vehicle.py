@@ -33,11 +33,19 @@ class FuelType(str, Enum):
     ELECTRIC = "ELECTRIC"
 
 
+class VehicleDocumentType(str, Enum):
+    """Vehicle document categories supported by the system."""
+
+    TAX = "tax"
+    INSURANCE = "insurance"
+    INSPECTION = "inspection"
+
+
 class Vehicle(Base, TimestampMixin):
     """Vehicle model for fleet management"""
-    
+
     __tablename__ = "vehicles"
-    
+
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     registration_number: Mapped[str] = mapped_column(
         String(20), unique=True, nullable=False, index=True
@@ -66,6 +74,9 @@ class Vehicle(Base, TimestampMixin):
     tax_expiry_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True, index=True)
     insurance_expiry_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True, index=True)
     inspection_expiry_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True, index=True)
+    tax_document_path: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    insurance_document_path: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    inspection_document_path: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     
     # Additional info
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

@@ -17,6 +17,8 @@ from .user import (
 )
 from .vehicle import (
     VehicleCreate,
+    VehicleDocumentExpiryNotification,
+    VehicleDocumentUploadResponse,
     VehicleRead,
     VehicleStatusUpdate,
     VehicleUpdate,
@@ -35,6 +37,8 @@ __all__ = [
     "UserRoleUpdate",
     "UserUpdate",
     "VehicleCreate",
+    "VehicleDocumentExpiryNotification",
+    "VehicleDocumentUploadResponse",
     "VehicleRead",
     "VehicleStatusUpdate",
     "VehicleUpdate",

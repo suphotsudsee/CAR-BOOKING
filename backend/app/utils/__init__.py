@@ -8,6 +8,7 @@ from .security import (
     get_password_hash,
     verify_password,
 )
+from .files import build_static_file_url
 
 __all__ = [
     "InvalidTokenError",
@@ -16,4 +17,5 @@ __all__ = [
     "decode_token",
     "get_password_hash",
     "verify_password",
+    "build_static_file_url",
 ]
