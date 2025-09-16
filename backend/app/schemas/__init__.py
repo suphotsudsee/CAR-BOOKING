@@ -15,6 +15,12 @@ from .user import (
     UserRoleUpdate,
     UserUpdate,
 )
+from .vehicle import (
+    VehicleCreate,
+    VehicleRead,
+    VehicleStatusUpdate,
+    VehicleUpdate,
+)
 
 __all__ = [
     "LoginRequest",
@@ -28,4 +34,8 @@ __all__ = [
     "UserRead",
     "UserRoleUpdate",
     "UserUpdate",
+    "VehicleCreate",
+    "VehicleRead",
+    "VehicleStatusUpdate",
+    "VehicleUpdate",
 ]
