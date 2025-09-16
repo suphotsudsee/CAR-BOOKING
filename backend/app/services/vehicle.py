@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Optional
 from uuid import uuid4
@@ -11,8 +11,11 @@ from uuid import uuid4
 from sqlalchemy import Select, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
+from app.models.assignment import Assignment
+from app.models.booking import BookingRequest, BookingStatus
 from app.models.vehicle import (
     Vehicle,
     VehicleDocumentType,
@@ -45,6 +48,81 @@ _DOCUMENT_EXPIRY_MAP = {
     VehicleDocumentType.INSURANCE: "insurance_expiry_date",
     VehicleDocumentType.INSPECTION: "inspection_expiry_date",
 }
+
+
+_NON_BLOCKING_BOOKING_STATUSES: frozenset[BookingStatus] = frozenset(
+    {
+        BookingStatus.CANCELLED,
+        BookingStatus.COMPLETED,
+        BookingStatus.REJECTED,
+    }
+)
+
+
+def _ensure_booking_window(start: datetime, end: datetime) -> None:
+    """Validate the temporal window used for vehicle availability checks."""
+
+    if start >= end:
+        msg = "Start datetime must be before end datetime"
+        raise ValueError(msg)
+
+    if (start.tzinfo is None) != (end.tzinfo is None):
+        msg = "Start and end datetimes must both be naive or timezone-aware"
+        raise ValueError(msg)
+
+
+async def get_vehicle_conflicting_assignments(
+    session: AsyncSession,
+    *,
+    vehicle_id: int,
+    start: datetime,
+    end: datetime,
+    exclude_booking_id: Optional[int] = None,
+) -> list[Assignment]:
+    """Return assignments that clash with the supplied booking window."""
+
+    _ensure_booking_window(start, end)
+
+    stmt = (
+        select(Assignment)
+        .options(selectinload(Assignment.booking_request))
+        .join(BookingRequest)
+        .where(Assignment.vehicle_id == vehicle_id)
+        .where(BookingRequest.start_datetime < end)
+        .where(BookingRequest.end_datetime > start)
+        .where(BookingRequest.status.notin_(_NON_BLOCKING_BOOKING_STATUSES))
+        .order_by(BookingRequest.start_datetime, Assignment.id)
+    )
+
+    if exclude_booking_id is not None:
+        stmt = stmt.where(Assignment.booking_request_id != exclude_booking_id)
+
+    result = await session.execute(stmt)
+    return list(result.scalars().all())
+
+
+async def is_vehicle_available(
+    session: AsyncSession,
+    *,
+    vehicle: Vehicle,
+    start: datetime,
+    end: datetime,
+    exclude_booking_id: Optional[int] = None,
+) -> bool:
+    """Return ``True`` when the vehicle is free for the requested window."""
+
+    if vehicle.status != VehicleStatus.ACTIVE:
+        return False
+
+    conflicts = await get_vehicle_conflicting_assignments(
+        session,
+        vehicle_id=vehicle.id,
+        start=start,
+        end=end,
+        exclude_booking_id=exclude_booking_id,
+    )
+
+    return not conflicts
 
 
 async def get_vehicle_by_id(session: AsyncSession, vehicle_id: int) -> Optional[Vehicle]:

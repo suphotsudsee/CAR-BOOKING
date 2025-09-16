@@ -302,6 +302,29 @@ async def is_driver_available(
     return not conflicts
 
 
+async def ensure_driver_available(
+    session: AsyncSession,
+    *,
+    driver: Driver,
+    start: datetime,
+    end: datetime,
+    exclude_booking_id: Optional[int] = None,
+) -> None:
+    """Validate that *driver* can be allocated to the requested window."""
+
+    available = await is_driver_available(
+        session,
+        driver=driver,
+        start=start,
+        end=end,
+        exclude_booking_id=exclude_booking_id,
+    )
+
+    if not available:
+        msg = "Driver is not available for the requested time window"
+        raise ValueError(msg)
+
+
 async def create_driver(session: AsyncSession, driver_in: DriverCreate) -> Driver:
     """Persist a new driver record after validating constraints."""
 
