@@ -47,6 +47,7 @@ class ApprovalRead(BaseModel):
     booking_request_id: int
     approver_id: int
     approval_level: int
+    delegated_from_id: Optional[int] = None
     decision: ApprovalDecision
     reason: Optional[str] = None
     decided_at: datetime
@@ -60,6 +61,7 @@ class ApprovalNotificationRead(BaseModel):
     booking_id: int
     requester_id: int
     approver_id: int
+    approval_level: int
     decision: ApprovalDecision
     message: str
     reason: Optional[str] = None

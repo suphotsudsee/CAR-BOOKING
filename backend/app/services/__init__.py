@@ -37,6 +37,7 @@ from .booking import (
     update_booking_request,
 )
 from .approval import (
+    create_approval_delegation,
     get_pending_booking_approval_notifications,
     list_booking_approvals,
     record_booking_approval,
@@ -90,6 +91,7 @@ __all__ = [
     "suggest_alternative_bookings",
     "transition_booking_status",
     "update_booking_request",
+    "create_approval_delegation",
     "get_pending_booking_approval_notifications",
     "list_booking_approvals",
     "record_booking_approval",
