@@ -34,7 +34,11 @@ class User(Base, TimestampMixin):
     
     # Relationships
     booking_requests = relationship("BookingRequest", back_populates="requester")
-    approvals = relationship("Approval", back_populates="approver")
+    approvals = relationship(
+        "Approval",
+        back_populates="approver",
+        foreign_keys="Approval.approver_id",
+    )
     assignments_created = relationship("Assignment", back_populates="assigned_by_user")
     driver_profile = relationship("Driver", back_populates="user", uselist=False)
     

@@ -8,6 +8,7 @@ from app.models.booking import BookingStatus, VehiclePreference
 from app.models.user import UserRole
 from app.schemas import BookingRequestCreate, UserCreate
 from app.services import (
+    create_approval_delegation,
     create_booking_request,
     create_user,
     get_booking_request_by_id,
@@ -31,7 +32,7 @@ async def test_record_booking_approval_updates_status(async_session: AsyncSessio
             username="manager_approval",
             email="manager_approval@example.com",
             full_name="Manager Approver",
-            department="Operations",
+            department="Finance",
             role=UserRole.MANAGER,
             password="SecurePass123",
         ),
@@ -97,7 +98,7 @@ async def test_record_booking_rejection_tracks_reason(async_session: AsyncSessio
             username="manager_reject",
             email="manager_reject@example.com",
             full_name="Manager Rejector",
-            department="Operations",
+            department="Finance",
             role=UserRole.MANAGER,
             password="SecurePass123",
         ),
@@ -120,6 +121,7 @@ async def test_record_booking_rejection_tracks_reason(async_session: AsyncSessio
         async_session,
         BookingRequestCreate(
             requester_id=requester.id,
+            department="Finance",
             purpose="Client site visit",
             passenger_count=2,
             start_datetime=start,
@@ -220,6 +222,252 @@ async def test_record_booking_approval_disallows_self_review(
             approver=manager,
             decision=ApprovalDecision.APPROVED,
         )
+
+
+@pytest.mark.asyncio
+async def test_multi_level_approval_flow_requires_sequence(
+    async_session: AsyncSession,
+) -> None:
+    sales_manager = await create_user(
+        async_session,
+        UserCreate(
+            username="sales_manager",
+            email="sales_manager@example.com",
+            full_name="Sales Manager",
+            department="Sales",
+            role=UserRole.MANAGER,
+            password="SecurePass123",
+        ),
+    )
+
+    operations_manager = await create_user(
+        async_session,
+        UserCreate(
+            username="operations_manager",
+            email="operations_manager@example.com",
+            full_name="Operations Manager",
+            department="Operations",
+            role=UserRole.MANAGER,
+            password="SecurePass123",
+        ),
+    )
+
+    fleet_admin = await create_user(
+        async_session,
+        UserCreate(
+            username="fleet_admin",
+            email="fleet_admin@example.com",
+            full_name="Fleet Admin",
+            department="Fleet",
+            role=UserRole.FLEET_ADMIN,
+            password="SecurePass123",
+        ),
+    )
+
+    requester = await create_user(
+        async_session,
+        UserCreate(
+            username="sales_requester",
+            email="sales_requester@example.com",
+            full_name="Sales Requester",
+            department="Sales",
+            role=UserRole.REQUESTER,
+            password="SecurePass123",
+        ),
+    )
+
+    start, end = _future_window(hours_from_now=2, duration_hours=12)
+    booking = await create_booking_request(
+        async_session,
+        BookingRequestCreate(
+            requester_id=requester.id,
+            department="Sales",
+            purpose="International delegation visit",
+            passenger_count=9,
+            start_datetime=start,
+            end_datetime=end,
+            pickup_location="Head Office",
+            dropoff_location="Airport",
+            vehicle_preference=VehiclePreference.BUS,
+            status=BookingStatus.REQUESTED,
+        ),
+    )
+
+    with pytest.raises(ValueError):
+        await record_booking_approval(
+            async_session,
+            booking_request=booking,
+            approver=fleet_admin,
+            decision=ApprovalDecision.APPROVED,
+        )
+
+    first_level = await record_booking_approval(
+        async_session,
+        booking_request=booking,
+        approver=sales_manager,
+        decision=ApprovalDecision.APPROVED,
+    )
+    assert first_level.approval.approval_level == 1
+    assert first_level.booking.status == BookingStatus.REQUESTED
+
+    second_level = await record_booking_approval(
+        async_session,
+        booking_request=booking,
+        approver=operations_manager,
+        decision=ApprovalDecision.APPROVED,
+    )
+    assert second_level.approval.approval_level == 2
+    assert second_level.booking.status == BookingStatus.REQUESTED
+
+    final_level = await record_booking_approval(
+        async_session,
+        booking_request=booking,
+        approver=fleet_admin,
+        decision=ApprovalDecision.APPROVED,
+    )
+    assert final_level.approval.approval_level == 3
+    assert final_level.booking.status == BookingStatus.APPROVED
+
+    history = await list_booking_approvals(async_session, booking_request_id=booking.id)
+    assert [approval.approval_level for approval in history] == [1, 2, 3]
+
+
+@pytest.mark.asyncio
+async def test_hierarchical_routing_when_department_manager_missing(
+    async_session: AsyncSession,
+) -> None:
+    operations_manager = await create_user(
+        async_session,
+        UserCreate(
+            username="ops_only_manager",
+            email="ops_only_manager@example.com",
+            full_name="Operations Only Manager",
+            department="Operations",
+            role=UserRole.MANAGER,
+            password="SecurePass123",
+        ),
+    )
+
+    requester = await create_user(
+        async_session,
+        UserCreate(
+            username="support_requester",
+            email="support_requester@example.com",
+            full_name="Support Requester",
+            department="Support",
+            role=UserRole.REQUESTER,
+            password="SecurePass123",
+        ),
+    )
+
+    start, end = _future_window(hours_from_now=1, duration_hours=4)
+    booking = await create_booking_request(
+        async_session,
+        BookingRequestCreate(
+            requester_id=requester.id,
+            department="Support",
+            purpose="On-site troubleshooting",
+            passenger_count=2,
+            start_datetime=start,
+            end_datetime=end,
+            pickup_location="HQ",
+            dropoff_location="Client Site",
+            status=BookingStatus.REQUESTED,
+        ),
+    )
+
+    result = await record_booking_approval(
+        async_session,
+        booking_request=booking,
+        approver=operations_manager,
+        decision=ApprovalDecision.APPROVED,
+    )
+
+    assert result.approval.approval_level == 1
+    assert result.booking.status == BookingStatus.APPROVED
+
+
+@pytest.mark.asyncio
+async def test_delegated_approver_records_approval(
+    async_session: AsyncSession,
+) -> None:
+    finance_manager = await create_user(
+        async_session,
+        UserCreate(
+            username="finance_manager",
+            email="finance_manager@example.com",
+            full_name="Finance Manager",
+            department="Finance",
+            role=UserRole.MANAGER,
+            password="SecurePass123",
+        ),
+    )
+
+    delegate_manager = await create_user(
+        async_session,
+        UserCreate(
+            username="delegate_manager",
+            email="delegate_manager@example.com",
+            full_name="Delegate Manager",
+            department="Operations",
+            role=UserRole.MANAGER,
+            password="SecurePass123",
+        ),
+    )
+
+    requester = await create_user(
+        async_session,
+        UserCreate(
+            username="finance_requester",
+            email="finance_requester@example.com",
+            full_name="Finance Requester",
+            department="Finance",
+            role=UserRole.REQUESTER,
+            password="SecurePass123",
+        ),
+    )
+
+    start, end = _future_window(hours_from_now=2, duration_hours=3)
+    booking = await create_booking_request(
+        async_session,
+        BookingRequestCreate(
+            requester_id=requester.id,
+            department="Finance",
+            purpose="Supplier meeting",
+            passenger_count=3,
+            start_datetime=start,
+            end_datetime=end,
+            pickup_location="Finance Office",
+            dropoff_location="Downtown",
+            status=BookingStatus.REQUESTED,
+        ),
+    )
+
+    with pytest.raises(ValueError):
+        await record_booking_approval(
+            async_session,
+            booking_request=booking,
+            approver=delegate_manager,
+            decision=ApprovalDecision.APPROVED,
+        )
+
+    await create_approval_delegation(
+        async_session,
+        delegator=finance_manager,
+        delegate=delegate_manager,
+    )
+
+    delegated_result = await record_booking_approval(
+        async_session,
+        booking_request=booking,
+        approver=delegate_manager,
+        decision=ApprovalDecision.APPROVED,
+        reason="Covering for finance manager",
+    )
+
+    assert delegated_result.approval.delegated_from_id == finance_manager.id
+    assert "delegated" in delegated_result.notification.message.lower()
+    assert delegated_result.booking.status == BookingStatus.APPROVED
 
 
 @pytest.mark.asyncio
