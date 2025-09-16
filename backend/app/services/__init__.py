@@ -36,6 +36,11 @@ from .booking import (
     transition_booking_status,
     update_booking_request,
 )
+from .approval import (
+    get_pending_booking_approval_notifications,
+    list_booking_approvals,
+    record_booking_approval,
+)
 from .driver import (
     create_driver,
     delete_driver,
@@ -85,6 +90,9 @@ __all__ = [
     "suggest_alternative_bookings",
     "transition_booking_status",
     "update_booking_request",
+    "get_pending_booking_approval_notifications",
+    "list_booking_approvals",
+    "record_booking_approval",
     "create_driver",
     "delete_driver",
     "ensure_driver_available",

@@ -38,6 +38,13 @@ from .booking import (
     BookingRequestUpdate,
     BookingStatusUpdate,
 )
+from .approval import (
+    ApprovalActionRequest,
+    ApprovalNotificationRead,
+    ApprovalRead,
+    BookingApprovalResponse,
+    PendingApprovalNotificationRead,
+)
 
 __all__ = [
     "LoginRequest",
@@ -68,4 +75,9 @@ __all__ = [
     "BookingRequestRead",
     "BookingRequestUpdate",
     "BookingStatusUpdate",
+    "ApprovalActionRequest",
+    "ApprovalNotificationRead",
+    "ApprovalRead",
+    "BookingApprovalResponse",
+    "PendingApprovalNotificationRead",
 ]

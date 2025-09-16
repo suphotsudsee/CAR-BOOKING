@@ -3,7 +3,7 @@
 from enum import Enum
 from typing import Optional
 from datetime import datetime
-from sqlalchemy import String, Integer, DateTime, ForeignKey
+from sqlalchemy import String, Integer, DateTime, ForeignKey, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
@@ -26,7 +26,9 @@ class Approval(Base):
     approval_level: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     decision: Mapped[ApprovalDecision] = mapped_column(nullable=False)
     reason: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
-    decided_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default="CURRENT_TIMESTAMP")
+    decided_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
     
     # Relationships
     booking_request = relationship("BookingRequest", back_populates="approvals")

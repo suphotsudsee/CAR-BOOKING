@@ -5,25 +5,33 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import RoleBasedAccess, get_current_user
 from app.core.config import settings
 from app.db import get_async_session
+from app.models.approval import ApprovalDecision
 from app.models.booking import BookingRequest, BookingStatus, VehiclePreference
 from app.models.user import User, UserRole
 from app.schemas import (
+    ApprovalActionRequest,
+    ApprovalRead,
     BookingRequestCreate,
     BookingRequestRead,
     BookingRequestUpdate,
     BookingStatusUpdate,
+    BookingApprovalResponse,
+    PendingApprovalNotificationRead,
 )
 from app.services import (
     create_booking_request,
     delete_booking_request,
+    get_pending_booking_approval_notifications,
     get_booking_request_by_id,
+    list_booking_approvals,
     list_booking_requests,
+    record_booking_approval,
     transition_booking_status,
     update_booking_request,
 )
@@ -256,4 +264,125 @@ async def update_booking_status(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         ) from exc
+
+
+@router.post(
+    "/{booking_id}/approve",
+    response_model=BookingApprovalResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def approve_booking_request(
+    booking_id: int,
+    payload: Optional[ApprovalActionRequest] = Body(default=None),
+    session: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(_manage_bookings),
+) -> BookingApprovalResponse:
+    """Record a managerial approval decision for the specified booking."""
+
+    booking = await get_booking_request_by_id(session, booking_id)
+    if booking is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Booking not found")
+
+    request_body = payload or ApprovalActionRequest()
+
+    try:
+        result = await record_booking_approval(
+            session,
+            booking_request=booking,
+            approver=current_user,
+            decision=ApprovalDecision.APPROVED,
+            reason=request_body.reason,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+    return BookingApprovalResponse(
+        booking=result.booking,
+        approval=result.approval,
+        notification=result.notification,
+    )
+
+
+@router.post(
+    "/{booking_id}/reject",
+    response_model=BookingApprovalResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def reject_booking_request(
+    booking_id: int,
+    payload: Optional[ApprovalActionRequest] = Body(default=None),
+    session: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(_manage_bookings),
+) -> BookingApprovalResponse:
+    """Record a managerial rejection decision for the specified booking."""
+
+    booking = await get_booking_request_by_id(session, booking_id)
+    if booking is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Booking not found")
+
+    request_body = payload or ApprovalActionRequest()
+
+    try:
+        result = await record_booking_approval(
+            session,
+            booking_request=booking,
+            approver=current_user,
+            decision=ApprovalDecision.REJECTED,
+            reason=request_body.reason,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+    return BookingApprovalResponse(
+        booking=result.booking,
+        approval=result.approval,
+        notification=result.notification,
+    )
+
+
+@router.get("/{booking_id}/approvals", response_model=list[ApprovalRead])
+async def list_booking_approval_history(
+    booking_id: int,
+    session: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user),
+) -> list[ApprovalRead]:
+    """Return the approval audit history for the specified booking."""
+
+    booking = await get_booking_request_by_id(session, booking_id)
+    if booking is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Booking not found")
+
+    _ensure_can_access(booking, current_user)
+
+    return await list_booking_approvals(session, booking_request_id=booking.id)
+
+
+@router.get(
+    "/approvals/pending",
+    response_model=list[PendingApprovalNotificationRead],
+)
+async def list_pending_approval_notifications(
+    pending_for_hours: Optional[int] = Query(default=None, ge=0),
+    session: AsyncSession = Depends(get_async_session),
+    _: User = Depends(_manage_bookings),
+) -> list[PendingApprovalNotificationRead]:
+    """Return booking requests awaiting managerial approval."""
+
+    try:
+        notifications = await get_pending_booking_approval_notifications(
+            session, pending_for_hours=pending_for_hours
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+    return notifications
 
