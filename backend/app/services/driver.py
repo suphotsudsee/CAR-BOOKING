@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, timedelta
-from typing import Any, Optional
+from datetime import date, datetime, time, timedelta, tzinfo
+from typing import Any, Iterable, Optional
 
 from sqlalchemy import Select, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
+from app.models.assignment import Assignment
+from app.models.booking import BookingRequest, BookingStatus
 from app.models.driver import Driver, DriverStatus
 from app.models.user import User
 from app.schemas.driver import (
@@ -80,6 +83,223 @@ def _prepare_schedule(
         return None
     data = schedule.as_dict()
     return data or {}
+
+
+_WEEKDAY_NAMES = {
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+    "sunday",
+}
+
+_NON_BLOCKING_BOOKING_STATUSES = {
+    BookingStatus.CANCELLED,
+    BookingStatus.COMPLETED,
+    BookingStatus.REJECTED,
+}
+
+
+def _ensure_booking_window(start: datetime, end: datetime) -> None:
+    """Validate the temporal window used for availability checks."""
+
+    if start >= end:
+        msg = "Start datetime must be before end datetime"
+        raise ValueError(msg)
+
+    if (start.tzinfo is None) != (end.tzinfo is None):
+        msg = "Start and end datetimes must both be naive or timezone-aware"
+        raise ValueError(msg)
+
+
+def _normalise_schedule_data(schedule: Optional[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """Return a lower-cased copy of the stored availability schedule."""
+
+    if schedule is None:
+        return {}
+
+    if not isinstance(schedule, dict):
+        msg = "Availability schedule must be a mapping"
+        raise TypeError(msg)
+
+    normalised: dict[str, dict[str, Any]] = {}
+    for raw_day, raw_details in schedule.items():
+        if not isinstance(raw_day, str):
+            msg = "Weekday keys must be strings"
+            raise TypeError(msg)
+
+        day = raw_day.strip().lower()
+        if day not in _WEEKDAY_NAMES:
+            msg = f"Unknown weekday '{raw_day}' in availability schedule"
+            raise ValueError(msg)
+
+        details: dict[str, Any]
+        if raw_details is None:
+            details = {}
+        elif isinstance(raw_details, dict):
+            details = raw_details
+        else:
+            msg = "Availability entry must be a mapping"
+            raise TypeError(msg)
+
+        normalised[day] = {
+            "available": bool(details.get("available", False)),
+            "start": details.get("start"),
+            "end": details.get("end"),
+        }
+
+    return normalised
+
+
+def _coerce_time(value: Any) -> time:
+    """Return *value* as a :class:`time` instance."""
+
+    if isinstance(value, time):
+        return value
+
+    if isinstance(value, str):
+        try:
+            return time.fromisoformat(value)
+        except ValueError as exc:
+            msg = f"Invalid time value '{value}' in availability schedule"
+            raise ValueError(msg) from exc
+
+    msg = "Availability window times must be ISO strings or time objects"
+    raise TypeError(msg)
+
+
+def _combine(date_value: date, time_value: time, tz: tzinfo | None) -> datetime:
+    """Create a datetime using *date_value*, *time_value*, and optional timezone."""
+
+    combined = datetime.combine(date_value, time_value)
+    if tz is not None:
+        combined = combined.replace(tzinfo=tz)
+    return combined
+
+
+def _iter_booking_days(start: datetime, end: datetime) -> Iterable[date]:
+    """Yield each calendar date touched by the booking window."""
+
+    current = start.date()
+    yield current
+
+    last = end.date()
+    while current < last:
+        current += timedelta(days=1)
+        yield current
+
+
+def is_schedule_available_for_window(
+    schedule: Optional[dict[str, Any]],
+    start: datetime,
+    end: datetime,
+) -> bool:
+    """Return ``True`` if *schedule* allows the booking window."""
+
+    _ensure_booking_window(start, end)
+
+    if schedule is None:
+        return True
+
+    normalised = _normalise_schedule_data(schedule)
+    if not normalised:
+        return False
+
+    tz = start.tzinfo
+
+    for day in _iter_booking_days(start, end):
+        day_start = _combine(day, time.min, tz)
+        day_end = _combine(day, time.max, tz)
+
+        window_start = max(start, day_start)
+        window_end = min(end, day_end)
+
+        if window_start >= window_end:
+            continue
+
+        weekday = day.strftime("%A").lower()
+        details = normalised.get(weekday)
+        if not details or not details.get("available", False):
+            return False
+
+        start_raw = details.get("start")
+        end_raw = details.get("end")
+        if start_raw is None or end_raw is None:
+            return False
+
+        slot_start = _combine(day, _coerce_time(start_raw), tz)
+        slot_end = _combine(day, _coerce_time(end_raw), tz)
+
+        if not (slot_start <= window_start and slot_end >= window_end):
+            return False
+
+    return True
+
+
+def is_driver_available_by_schedule(
+    driver: Driver, start: datetime, end: datetime
+) -> bool:
+    """Check whether *driver*'s stored schedule allows the time window."""
+
+    return is_schedule_available_for_window(driver.availability_schedule, start, end)
+
+
+async def get_driver_conflicting_assignments(
+    session: AsyncSession,
+    *,
+    driver_id: int,
+    start: datetime,
+    end: datetime,
+    exclude_booking_id: Optional[int] = None,
+) -> list[Assignment]:
+    """Return assignments that clash with the supplied booking window."""
+
+    _ensure_booking_window(start, end)
+
+    stmt = (
+        select(Assignment)
+        .options(selectinload(Assignment.booking_request))
+        .join(BookingRequest)
+        .where(Assignment.driver_id == driver_id)
+        .where(BookingRequest.start_datetime < end)
+        .where(BookingRequest.end_datetime > start)
+        .where(BookingRequest.status.notin_(_NON_BLOCKING_BOOKING_STATUSES))
+        .order_by(BookingRequest.start_datetime, Assignment.id)
+    )
+
+    if exclude_booking_id is not None:
+        stmt = stmt.where(Assignment.booking_request_id != exclude_booking_id)
+
+    result = await session.execute(stmt)
+    return list(result.scalars().all())
+
+
+async def is_driver_available(
+    session: AsyncSession,
+    *,
+    driver: Driver,
+    start: datetime,
+    end: datetime,
+    exclude_booking_id: Optional[int] = None,
+) -> bool:
+    """Return ``True`` when the driver can be allocated to the booking window."""
+
+    if driver.status != DriverStatus.ACTIVE:
+        return False
+
+    if not is_driver_available_by_schedule(driver, start, end):
+        return False
+
+    conflicts = await get_driver_conflicting_assignments(
+        session,
+        driver_id=driver.id,
+        start=start,
+        end=end,
+        exclude_booking_id=exclude_booking_id,
+    )
+    return not conflicts
 
 
 async def create_driver(session: AsyncSession, driver_in: DriverCreate) -> Driver:
