@@ -67,6 +67,7 @@ from .calendar import (
     unsubscribe_from_calendar_updates,
     update_calendar_event,
 )
+from .notification import NotificationService, notification_broadcaster
 from .user import (
     change_user_password,
     create_user,
@@ -168,4 +169,6 @@ __all__ = [
     "subscribe_to_calendar_updates",
     "unsubscribe_from_calendar_updates",
     "update_calendar_event",
+    "NotificationService",
+    "notification_broadcaster",
 ]

@@ -46,6 +46,17 @@ class User(Base, TimestampMixin):
         back_populates="expense_reviewer",
         foreign_keys="JobRun.expense_reviewed_by_id",
     )
+    notifications = relationship(
+        "Notification",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    notification_preferences = relationship(
+        "NotificationPreference",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
 
     def __repr__(self) -> str:
         return f"<User(id={self.id}, username='{self.username}', role='{self.role}')>"

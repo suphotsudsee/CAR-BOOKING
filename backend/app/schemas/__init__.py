@@ -65,6 +65,13 @@ from .image import (
     VehicleImageUploadResponse,
 )
 from .job_run import JobRunCheckIn, JobRunCheckOut, JobRunRead
+from .notification import (
+    NotificationCreateRequest,
+    NotificationMarkReadResponse,
+    NotificationPreferenceRead,
+    NotificationPreferenceUpdate,
+    NotificationRead,
+)
 from .user import (
     UserCreate,
     UserPasswordChange,
@@ -144,6 +151,11 @@ __all__ = [
     "JobRunCheckIn",
     "JobRunCheckOut",
     "JobRunRead",
+    "NotificationCreateRequest",
+    "NotificationMarkReadResponse",
+    "NotificationPreferenceRead",
+    "NotificationPreferenceUpdate",
+    "NotificationRead",
     "SignedUrlResponse",
     "VehicleImageUploadResponse",
 ]

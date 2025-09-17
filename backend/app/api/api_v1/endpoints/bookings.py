@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,6 +31,7 @@ from app.services import (
     get_booking_request_by_id,
     list_booking_approvals,
     list_booking_requests,
+    NotificationService,
     record_booking_approval,
     transition_booking_status,
     update_booking_request,
@@ -52,6 +53,34 @@ def _ensure_can_access(booking: BookingRequest, user: User) -> None:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to access this booking",
         )
+
+
+async def _dispatch_booking_notification(
+    session: AsyncSession,
+    *,
+    user_notification: Any,
+) -> None:
+    """Persist an in-app notification derived from approval events."""
+
+    requester = await session.get(User, user_notification.requester_id)
+    if requester is None:
+        return
+
+    service = NotificationService(session)
+    title = "การอัปเดตคำขอจองรถ"
+    metadata = {
+        "booking_id": getattr(user_notification, "booking_id", None),
+        "approval_level": getattr(user_notification, "approval_level", None),
+        "decision": getattr(user_notification, "decision", None),
+    }
+
+    await service.create_notification(
+        requester,
+        title=title,
+        message=user_notification.message,
+        category="booking",
+        metadata={k: v for k, v in metadata.items() if v is not None},
+    )
 
 
 @router.post("/", response_model=BookingRequestRead, status_code=status.HTTP_201_CREATED)
@@ -299,6 +328,8 @@ async def approve_booking_request(
             detail=str(exc),
         ) from exc
 
+    await _dispatch_booking_notification(session, user_notification=result.notification)
+
     return BookingApprovalResponse(
         booking=result.booking,
         approval=result.approval,
@@ -338,6 +369,8 @@ async def reject_booking_request(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         ) from exc
+
+    await _dispatch_booking_notification(session, user_notification=result.notification)
 
     return BookingApprovalResponse(
         booking=result.booking,

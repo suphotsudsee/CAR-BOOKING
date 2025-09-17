@@ -25,6 +25,9 @@ class _AsyncSessionWrapper:
     def add(self, instance: Any) -> None:
         self._session.add(instance)
 
+    async def get(self, entity: Any, ident: Any):
+        return self._session.get(entity, ident)
+
     async def commit(self) -> None:
         self._session.commit()
 
