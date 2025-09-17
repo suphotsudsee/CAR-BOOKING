@@ -56,6 +56,7 @@ from .assignment import (
     AssignmentVehicleSuggestion,
     AssignmentVehicleSuggestionData,
 )
+from .job_run import JobRunCheckIn, JobRunCheckOut, JobRunRead
 
 __all__ = [
     "LoginRequest",
@@ -100,4 +101,7 @@ __all__ = [
     "AssignmentUpdate",
     "AssignmentVehicleSuggestion",
     "AssignmentVehicleSuggestionData",
+    "JobRunCheckIn",
+    "JobRunCheckOut",
+    "JobRunRead",
 ]
