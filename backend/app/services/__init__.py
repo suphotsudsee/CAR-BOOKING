@@ -41,11 +41,17 @@ from .driver import (
     update_driver_availability,
     update_driver_status,
 )
+from .expense import (
+    ReceiptValidationError,
+    generate_expense_analytics,
+    handle_expense_receipt_upload,
+)
 from .job_run import (
     build_job_run_image_gallery,
     get_job_run_by_booking_id,
     record_job_check_in,
     record_job_check_out,
+    review_job_expenses,
 )
 from .user import (
     change_user_password,
@@ -128,8 +134,12 @@ __all__ = [
     "get_assignment_by_id",
     "suggest_assignment_options",
     "update_assignment",
+    "generate_expense_analytics",
     "build_job_run_image_gallery",
+    "handle_expense_receipt_upload",
     "get_job_run_by_booking_id",
     "record_job_check_in",
     "record_job_check_out",
+    "ReceiptValidationError",
+    "review_job_expenses",
 ]

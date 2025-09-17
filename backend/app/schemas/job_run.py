@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 from datetime import datetime
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
 
-from app.models.job_run import JobRunStatus
+from app.models.job_run import ExpenseStatus, JobRunStatus
 
 
 def _normalise_optional_text(value: Optional[str]) -> Optional[str]:
@@ -92,6 +92,14 @@ class JobRunCheckOut(BaseModel):
     ) -> Optional[list[str]]:
         return _normalise_string_list(value)
 
+    @field_validator("fuel_cost", "toll_cost", "other_expenses")
+    @classmethod
+    def _quantize_expenses(cls, value: Decimal) -> Decimal:
+        quantized = value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        if quantized < Decimal("0.00"):
+            raise ValueError("Expense values cannot be negative")
+        return quantized
+
 
 class JobRunRead(BaseModel):
     """Read model representing a job run record."""
@@ -111,6 +119,10 @@ class JobRunRead(BaseModel):
     toll_cost: Decimal
     other_expenses: Decimal
     expense_receipts: Optional[list[str]] = None
+    expense_status: ExpenseStatus
+    expense_reviewed_by_id: Optional[int] = None
+    expense_reviewed_at: Optional[datetime] = None
+    expense_review_notes: Optional[str] = None
     incident_report: Optional[str] = None
     incident_images: Optional[list[str]] = None
     created_at: datetime

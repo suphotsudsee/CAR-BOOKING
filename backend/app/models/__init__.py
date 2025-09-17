@@ -14,7 +14,7 @@ from .booking import BookingRequest, BookingStatus, VehiclePreference
 from .approval import Approval, ApprovalDecision, ApprovalDelegation
 from .assignment import Assignment
 from .assignment_history import AssignmentChangeReason, AssignmentHistory
-from .job_run import JobRun, JobRunStatus
+from .job_run import JobRun, JobRunStatus, ExpenseStatus
 
 __all__ = [
     "Base",
@@ -39,4 +39,5 @@ __all__ = [
     "AssignmentHistory",
     "JobRun",
     "JobRunStatus",
+    "ExpenseStatus",
 ]

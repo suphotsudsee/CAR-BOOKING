@@ -10,7 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.assignment import Assignment
 from app.models.booking import BookingRequest, BookingStatus
-from app.models.job_run import JobRun, JobRunStatus
+from app.models.job_run import ExpenseStatus, JobRun, JobRunStatus
+from app.models.user import User
 from app.schemas.image import GalleryImage, JobRunImageGallery
 from app.schemas.job_run import JobRunCheckIn, JobRunCheckOut
 from app.services.storage import ObjectNotFoundError, S3StorageService
@@ -87,6 +88,10 @@ async def record_job_check_in(
     job_run.checkin_location = payload.checkin_location
     job_run.checkin_images = payload.checkin_images
     job_run.status = JobRunStatus.IN_PROGRESS
+    job_run.expense_status = ExpenseStatus.NOT_SUBMITTED
+    job_run.expense_reviewed_by_id = None
+    job_run.expense_reviewed_at = None
+    job_run.expense_review_notes = None
 
     booking_request.job_run = job_run
     booking_request.status = BookingStatus.IN_PROGRESS
@@ -138,16 +143,59 @@ async def record_job_check_out(
     job_run.fuel_cost = payload.fuel_cost
     job_run.toll_cost = payload.toll_cost
     job_run.other_expenses = payload.other_expenses
-    job_run.expense_receipts = payload.expense_receipts
+    if payload.expense_receipts is not None:
+        job_run.expense_receipts = payload.expense_receipts
     job_run.incident_report = payload.incident_report
     job_run.incident_images = payload.incident_images
     job_run.status = JobRunStatus.COMPLETED
+    job_run.expense_status = ExpenseStatus.PENDING_REVIEW
+    job_run.expense_reviewed_by_id = None
+    job_run.expense_reviewed_at = None
+    job_run.expense_review_notes = None
 
     booking_request.status = BookingStatus.COMPLETED
 
     await session.commit()
     await session.refresh(job_run)
     await session.refresh(booking_request)
+    return job_run
+
+
+def _normalise_notes(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return None
+    trimmed = value.strip()
+    return trimmed or None
+
+
+async def review_job_expenses(
+    session: AsyncSession,
+    *,
+    booking_request: BookingRequest,
+    reviewer: User,
+    decision: ExpenseStatus,
+    notes: Optional[str] = None,
+) -> JobRun:
+    """Update the expense approval status for a completed job run."""
+
+    if decision not in {ExpenseStatus.APPROVED, ExpenseStatus.REJECTED}:
+        msg = "Decision must be APPROVED or REJECTED"
+        raise ValueError(msg)
+
+    job_run = booking_request.job_run
+    if job_run is None or job_run.checkout_datetime is None:
+        raise ValueError("Job must be checked out before expenses can be reviewed")
+
+    if job_run.status != JobRunStatus.COMPLETED:
+        raise ValueError("Only completed jobs can be reviewed")
+
+    job_run.expense_status = decision
+    job_run.expense_reviewed_by_id = reviewer.id
+    job_run.expense_reviewed_at = datetime.now(timezone.utc)
+    job_run.expense_review_notes = _normalise_notes(notes)
+
+    await session.commit()
+    await session.refresh(job_run)
     return job_run
 
 
@@ -219,4 +267,5 @@ __all__ = [
     "record_job_check_in",
     "record_job_check_out",
     "build_job_run_image_gallery",
+    "review_job_expenses",
 ]

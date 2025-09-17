@@ -2,23 +2,41 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import datetime
+from typing import Optional
+
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user, get_storage_service
+from app.api.deps import RoleBasedAccess, get_current_user, get_storage_service
 from app.core.config import settings
 from app.db import get_async_session
 from app.models.assignment import Assignment
 from app.models.booking import BookingRequest, BookingStatus
+from app.models.job_run import ExpenseStatus
 from app.models.user import User, UserRole
-from app.schemas import JobRunCheckIn, JobRunCheckOut, JobRunImageGallery, JobRunRead
+from app.schemas import (
+    ExpenseAnalytics,
+    ExpenseReceiptUploadResponse,
+    ExpenseReviewDecision,
+    ExpenseStatusSummary,
+    JobRunCheckIn,
+    JobRunCheckOut,
+    JobRunExpenseReview,
+    JobRunImageGallery,
+    JobRunRead,
+)
 from app.services import (
+    ReceiptValidationError,
     build_job_run_image_gallery,
+    generate_expense_analytics,
     get_assignment_by_booking_id,
     get_booking_request_by_id,
     get_job_run_by_booking_id,
+    handle_expense_receipt_upload,
     record_job_check_in,
     record_job_check_out,
+    review_job_expenses,
 )
 from app.services.storage import S3StorageService
 
@@ -125,6 +143,60 @@ async def get_job_run(
 
 
 @router.post(
+    "/by-booking/{booking_id}/expenses/receipts",
+    response_model=ExpenseReceiptUploadResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def upload_expense_receipt(
+    booking_id: int,
+    file: UploadFile = File(...),
+    session: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user),
+    storage: S3StorageService = Depends(get_storage_service),
+) -> ExpenseReceiptUploadResponse:
+    """Upload a receipt image or document for job expenses."""
+
+    booking = await _load_booking(session, booking_id)
+    await _ensure_can_operate_job(session, booking=booking, user=current_user)
+
+    job_run = await get_job_run_by_booking_id(session, booking_id)
+    if job_run is None or job_run.checkin_datetime is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Job must be checked in before uploading receipts",
+        )
+
+    try:
+        stored = await handle_expense_receipt_upload(
+            storage,
+            file,
+            max_size=settings.MAX_FILE_SIZE,
+            allowed_extensions=settings.ALLOWED_EXTENSIONS,
+            expires_in=settings.S3_URL_EXPIRATION,
+        )
+    except ReceiptValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+    receipts = list(job_run.expense_receipts or [])
+    if stored.key not in receipts:
+        receipts.append(stored.key)
+        job_run.expense_receipts = receipts
+        await session.commit()
+        await session.refresh(job_run)
+
+    return ExpenseReceiptUploadResponse(
+        key=stored.key,
+        url=stored.url,
+        expires_in=stored.expires_in,
+        content_type=stored.content_type,
+        size=stored.size,
+    )
+
+
+@router.post(
     "/by-booking/{booking_id}/check-in",
     response_model=JobRunRead,
 )
@@ -186,6 +258,92 @@ async def check_out_job(
     return job_run
 
 
+@router.post(
+    "/by-booking/{booking_id}/expenses/review",
+    response_model=JobRunRead,
+)
+async def review_job_run_expenses(
+    booking_id: int,
+    payload: JobRunExpenseReview,
+    session: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(RoleBasedAccess(_MANAGEMENT_ROLES)),
+) -> JobRunRead:
+    """Approve or reject recorded job run expenses."""
+
+    booking = await _load_booking(session, booking_id)
+    await _ensure_can_view_job(session, booking=booking, user=current_user)
+
+    decision = (
+        ExpenseStatus.APPROVED
+        if payload.decision == ExpenseReviewDecision.APPROVE
+        else ExpenseStatus.REJECTED
+    )
+
+    try:
+        job_run = await review_job_expenses(
+            session,
+            booking_request=booking,
+            reviewer=current_user,
+            decision=decision,
+            notes=payload.notes,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+    return job_run
+
+
+@router.get(
+    "/analytics/expenses",
+    response_model=ExpenseAnalytics,
+)
+async def get_expense_analytics(
+    *,
+    session: AsyncSession = Depends(get_async_session),
+    _current_user: User = Depends(
+        RoleBasedAccess((*_MANAGEMENT_ROLES, UserRole.AUDITOR))
+    ),
+    start: Optional[datetime] = Query(default=None),
+    end: Optional[datetime] = Query(default=None),
+    status: Optional[ExpenseStatus] = Query(default=None),
+) -> ExpenseAnalytics:
+    """Return aggregated expense analytics for job runs."""
+
+    if start and end and start > end:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Start date must be before end date",
+        )
+
+    analytics = await generate_expense_analytics(
+        session, start=start, end=end, status=status
+    )
+
+    breakdown = [
+        ExpenseStatusSummary(
+            status=item.status,
+            count=item.count,
+            total_expenses=item.total_expenses,
+        )
+        for item in analytics.status_breakdown
+    ]
+
+    return ExpenseAnalytics(
+        generated_at=analytics.generated_at,
+        total_jobs=analytics.total_jobs,
+        total_fuel_cost=analytics.total_fuel_cost,
+        total_toll_cost=analytics.total_toll_cost,
+        total_other_expenses=analytics.total_other_expenses,
+        total_expenses=analytics.total_expenses,
+        average_fuel_cost=analytics.average_fuel_cost,
+        average_total_expense=analytics.average_total_expense,
+        status_breakdown=breakdown,
+    )
+
+
 @router.get(
     "/by-booking/{booking_id}/image-gallery",
     response_model=JobRunImageGallery,
@@ -218,6 +376,9 @@ async def get_job_run_image_gallery(
 __all__ = [
     "check_in_job",
     "check_out_job",
+    "get_expense_analytics",
     "get_job_run",
     "get_job_run_image_gallery",
+    "review_job_run_expenses",
+    "upload_expense_receipt",
 ]

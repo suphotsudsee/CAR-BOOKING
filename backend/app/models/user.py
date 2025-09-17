@@ -41,6 +41,11 @@ class User(Base, TimestampMixin):
     )
     assignments_created = relationship("Assignment", back_populates="assigned_by_user")
     driver_profile = relationship("Driver", back_populates="user", uselist=False)
-    
+    reviewed_job_runs = relationship(
+        "JobRun",
+        back_populates="expense_reviewer",
+        foreign_keys="JobRun.expense_reviewed_by_id",
+    )
+
     def __repr__(self) -> str:
         return f"<User(id={self.id}, username='{self.username}', role='{self.role}')>"
