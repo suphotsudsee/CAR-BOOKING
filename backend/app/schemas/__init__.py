@@ -1,43 +1,5 @@
 """Pydantic schemas exposed by the application."""
 
-from .auth import (
-    LoginRequest,
-    RefreshTokenRequest,
-    RefreshTokenResponse,
-    TokenPayload,
-    TokenResponse,
-)
-from .user import (
-    UserCreate,
-    UserPasswordChange,
-    UserProfileUpdate,
-    UserRead,
-    UserRoleUpdate,
-    UserUpdate,
-)
-from .driver import (
-    DriverAvailabilitySchedule,
-    DriverAvailabilityUpdate,
-    DriverCreate,
-    DriverLicenseExpiryNotification,
-    DriverRead,
-    DriverStatusUpdate,
-    DriverUpdate,
-)
-from .vehicle import (
-    VehicleCreate,
-    VehicleDocumentExpiryNotification,
-    VehicleDocumentUploadResponse,
-    VehicleRead,
-    VehicleStatusUpdate,
-    VehicleUpdate,
-)
-from .booking import (
-    BookingRequestCreate,
-    BookingRequestRead,
-    BookingRequestUpdate,
-    BookingStatusUpdate,
-)
 from .approval import (
     ApprovalActionRequest,
     ApprovalNotificationRead,
@@ -56,7 +18,51 @@ from .assignment import (
     AssignmentVehicleSuggestion,
     AssignmentVehicleSuggestionData,
 )
+from .auth import (
+    LoginRequest,
+    RefreshTokenRequest,
+    RefreshTokenResponse,
+    TokenPayload,
+    TokenResponse,
+)
+from .booking import (
+    BookingRequestCreate,
+    BookingRequestRead,
+    BookingRequestUpdate,
+    BookingStatusUpdate,
+)
+from .driver import (
+    DriverAvailabilitySchedule,
+    DriverAvailabilityUpdate,
+    DriverCreate,
+    DriverLicenseExpiryNotification,
+    DriverRead,
+    DriverStatusUpdate,
+    DriverUpdate,
+)
+from .image import (
+    GalleryImage,
+    JobRunImageGallery,
+    SignedUrlResponse,
+    VehicleImageUploadResponse,
+)
 from .job_run import JobRunCheckIn, JobRunCheckOut, JobRunRead
+from .user import (
+    UserCreate,
+    UserPasswordChange,
+    UserProfileUpdate,
+    UserRead,
+    UserRoleUpdate,
+    UserUpdate,
+)
+from .vehicle import (
+    VehicleCreate,
+    VehicleDocumentExpiryNotification,
+    VehicleDocumentUploadResponse,
+    VehicleRead,
+    VehicleStatusUpdate,
+    VehicleUpdate,
+)
 
 __all__ = [
     "LoginRequest",
@@ -101,7 +107,11 @@ __all__ = [
     "AssignmentUpdate",
     "AssignmentVehicleSuggestion",
     "AssignmentVehicleSuggestionData",
+    "GalleryImage",
+    "JobRunImageGallery",
     "JobRunCheckIn",
     "JobRunCheckOut",
     "JobRunRead",
+    "SignedUrlResponse",
+    "VehicleImageUploadResponse",
 ]
