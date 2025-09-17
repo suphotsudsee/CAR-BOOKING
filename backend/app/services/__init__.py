@@ -53,6 +53,7 @@ from .job_run import (
     record_job_check_out,
     review_job_expenses,
 )
+from .notification import queue_email_notification
 from .calendar import (
     build_resource_calendar_view,
     create_calendar_event,
@@ -157,6 +158,7 @@ __all__ = [
     "record_job_check_out",
     "ReceiptValidationError",
     "review_job_expenses",
+    "queue_email_notification",
     "build_resource_calendar_view",
     "create_calendar_event",
     "delete_calendar_event",

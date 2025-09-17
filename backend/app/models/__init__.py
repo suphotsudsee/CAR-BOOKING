@@ -21,6 +21,7 @@ from .calendar_event import (
     CalendarEventType,
     CalendarResourceType,
 )
+from .notification import EmailDeliveryStatus, EmailNotification
 
 __all__ = [
     "Base",
