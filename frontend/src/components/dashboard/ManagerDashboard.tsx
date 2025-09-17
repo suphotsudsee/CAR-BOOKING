@@ -3,12 +3,12 @@
 import { useMemo } from 'react';
 
 import {
+  AlarmClock,
   BarChart3,
   CalendarClock,
   CheckSquare,
-  ClipboardSignature,
-  ClockAlert,
   ClipboardList,
+  ClipboardSignature,
   Users,
 } from 'lucide-react';
 
@@ -79,7 +79,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
         <StatCard
           label="คำขอรออนุมัติ"
           value="5 รายการ"
-          icon={ClockAlert}
+          icon={AlarmClock}
           accent="amber"
           trend={{ value: '-2', description: 'จากเมื่อวาน', direction: 'down' }}
         />

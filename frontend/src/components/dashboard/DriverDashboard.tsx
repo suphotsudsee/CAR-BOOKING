@@ -4,13 +4,13 @@ import { useMemo, useState } from 'react';
 
 import {
   CalendarCheck,
+  CarFront,
   CheckCircle,
   Clock4,
   LogIn,
   LogOut,
   MapPinned,
   Route,
-  SteeringWheel,
   UserCheck,
 } from 'lucide-react';
 
@@ -74,7 +74,7 @@ export function DriverDashboard({ user }: DriverDashboardProps) {
         <StatCard
           label="งานวันนี้"
           value="2 งาน"
-          icon={SteeringWheel}
+          icon={CarFront}
           accent="primary"
           trend={{ value: '+1', description: 'งานเพิ่มเติม', direction: 'up' }}
         />
