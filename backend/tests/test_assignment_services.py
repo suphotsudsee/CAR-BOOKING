@@ -3,8 +3,10 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta, timezone
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.assignment_history import AssignmentChangeReason, AssignmentHistory
 from app.models.booking import BookingStatus, VehiclePreference
 from app.models.driver import DriverStatus
 from app.models.user import User, UserRole
@@ -101,8 +103,10 @@ async def _create_approved_booking(
     requester_id: int,
     preference: VehiclePreference = VehiclePreference.ANY,
     passengers: int = 4,
+    hours_from_now: int = 1,
+    duration_hours: int = 2,
 ) -> int:
-    start, end = _future_window()
+    start, end = _future_window(hours_from_now=hours_from_now, duration_hours=duration_hours)
     booking = await create_booking_request(
         session,
         BookingRequestCreate(
@@ -164,6 +168,46 @@ async def test_suggest_assignments_prioritises_preference(
 
 
 @pytest.mark.asyncio
+async def test_suggest_assignments_handles_preference_fallback(
+    async_session: AsyncSession,
+) -> None:
+    manager = await _create_manager(async_session)
+    await _create_vehicle(
+        async_session,
+        registration="B 2100 XYZ",
+        vehicle_type=VehicleType.VAN,
+        seating_capacity=12,
+    )
+    await _create_vehicle(
+        async_session,
+        registration="B 2200 XYZ",
+        vehicle_type=VehicleType.PICKUP,
+        seating_capacity=2,
+    )
+    await _create_driver(async_session, employee_code="DRV10", full_name="Driver Ten")
+    await _create_driver(async_session, employee_code="DRV11", full_name="Driver Eleven")
+
+    booking_id = await _create_approved_booking(
+        async_session,
+        requester_id=manager.id,
+        preference=VehiclePreference.BUS,
+    )
+
+    booking = await get_booking_request_by_id(async_session, booking_id)
+    assert booking is not None
+
+    suggestions = await suggest_assignment_options(
+        async_session, booking_request=booking, limit=5
+    )
+
+    assert suggestions
+    top = suggestions[0]
+    assert top.vehicle.vehicle_type == VehicleType.VAN
+    assert top.vehicle.matches_preference is False
+    assert any("Closest available type" in reason for reason in top.reasons)
+
+
+@pytest.mark.asyncio
 async def test_create_assignment_auto_assigns_resources(
     async_session: AsyncSession,
 ) -> None:
@@ -192,6 +236,80 @@ async def test_create_assignment_auto_assigns_resources(
 
     booking = await get_booking_request_by_id(async_session, booking_id)
     assert booking is not None and booking.status == BookingStatus.ASSIGNED
+
+
+@pytest.mark.asyncio
+async def test_auto_assign_balances_driver_workload(
+    async_session: AsyncSession,
+) -> None:
+    manager = await _create_manager(async_session)
+    primary_vehicle_id = await _create_vehicle(
+        async_session,
+        registration="B 3050 XYZ",
+        vehicle_type=VehicleType.SEDAN,
+        seating_capacity=4,
+    )
+    supporting_vehicle_id = await _create_vehicle(
+        async_session,
+        registration="B 3060 XYZ",
+        vehicle_type=VehicleType.SEDAN,
+        seating_capacity=4,
+    )
+    busy_driver_id = await _create_driver(
+        async_session, employee_code="DRV7", full_name="Driver Seven"
+    )
+    balanced_driver_id = await _create_driver(
+        async_session, employee_code="DRV8", full_name="Driver Eight"
+    )
+
+    booking_busy_one = await _create_approved_booking(
+        async_session,
+        requester_id=manager.id,
+        hours_from_now=2,
+    )
+    await create_assignment(
+        async_session,
+        AssignmentCreate(
+            booking_request_id=booking_busy_one,
+            vehicle_id=supporting_vehicle_id,
+            driver_id=busy_driver_id,
+            auto_assign=False,
+        ),
+        assigned_by=manager,
+    )
+
+    booking_busy_two = await _create_approved_booking(
+        async_session,
+        requester_id=manager.id,
+        hours_from_now=6,
+    )
+    await create_assignment(
+        async_session,
+        AssignmentCreate(
+            booking_request_id=booking_busy_two,
+            vehicle_id=supporting_vehicle_id,
+            driver_id=busy_driver_id,
+            auto_assign=False,
+        ),
+        assigned_by=manager,
+    )
+
+    target_booking_id = await _create_approved_booking(
+        async_session,
+        requester_id=manager.id,
+        hours_from_now=12,
+    )
+
+    assignment = await create_assignment(
+        async_session,
+        AssignmentCreate(
+            booking_request_id=target_booking_id,
+            vehicle_id=primary_vehicle_id,
+        ),
+        assigned_by=manager,
+    )
+
+    assert assignment.driver_id == balanced_driver_id
 
 
 @pytest.mark.asyncio
@@ -288,3 +406,91 @@ async def test_update_assignment_allows_manual_override(
     assert updated.assigned_by == manager.id
     assert updated.assigned_at >= assignment.assigned_at
 
+
+@pytest.mark.asyncio
+async def test_assignment_history_records_changes(
+    async_session: AsyncSession,
+) -> None:
+    manager = await _create_manager(async_session)
+    vehicle_one_id = await _create_vehicle(
+        async_session,
+        registration="B 6100 XYZ",
+        vehicle_type=VehicleType.SEDAN,
+        seating_capacity=4,
+    )
+    vehicle_two_id = await _create_vehicle(
+        async_session,
+        registration="B 6200 XYZ",
+        vehicle_type=VehicleType.VAN,
+        seating_capacity=8,
+    )
+    driver_one_id = await _create_driver(
+        async_session, employee_code="DRV9", full_name="Driver Nine"
+    )
+    driver_two_id = await _create_driver(
+        async_session, employee_code="DRV12", full_name="Driver Twelve"
+    )
+
+    booking_id = await _create_approved_booking(
+        async_session, requester_id=manager.id, preference=VehiclePreference.ANY
+    )
+
+    assignment = await create_assignment(
+        async_session,
+        AssignmentCreate(
+            booking_request_id=booking_id,
+            vehicle_id=vehicle_one_id,
+            driver_id=driver_one_id,
+            auto_assign=False,
+            notes="Initial assignment",
+        ),
+        assigned_by=manager,
+    )
+
+    result = await async_session.execute(
+        select(AssignmentHistory)
+        .where(AssignmentHistory.assignment_id == assignment.id)
+        .order_by(AssignmentHistory.created_at)
+    )
+    history_entries = list(result.scalars().all())
+    assert len(history_entries) == 1
+
+    created_entry = history_entries[0]
+    assert created_entry.change_reason == AssignmentChangeReason.CREATED
+    assert created_entry.previous_vehicle_id is None
+    assert created_entry.vehicle_id == vehicle_one_id
+    assert created_entry.previous_driver_id is None
+    assert created_entry.driver_id == driver_one_id
+    assert created_entry.notes == "Initial assignment"
+
+    updated = await update_assignment(
+        async_session,
+        assignment=assignment,
+        assignment_update=AssignmentUpdate(
+            vehicle_id=vehicle_two_id,
+            driver_id=driver_two_id,
+            notes="Updated assignment",
+            auto_assign=False,
+        ),
+        assigned_by=manager,
+    )
+
+    result = await async_session.execute(
+        select(AssignmentHistory)
+        .where(AssignmentHistory.assignment_id == assignment.id)
+        .order_by(AssignmentHistory.created_at)
+    )
+    history_entries = list(result.scalars().all())
+    assert len(history_entries) == 2
+
+    change_entry = history_entries[-1]
+    assert change_entry.change_reason == AssignmentChangeReason.UPDATED
+    assert change_entry.previous_vehicle_id == vehicle_one_id
+    assert change_entry.vehicle_id == vehicle_two_id
+    assert change_entry.previous_driver_id == driver_one_id
+    assert change_entry.driver_id == driver_two_id
+    assert change_entry.previous_notes == "Initial assignment"
+    assert change_entry.notes == "Updated assignment"
+
+    assert updated.vehicle_id == vehicle_two_id
+    assert updated.driver_id == driver_two_id

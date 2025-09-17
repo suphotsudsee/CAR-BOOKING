@@ -41,6 +41,12 @@ class Assignment(Base):
     vehicle = relationship("Vehicle", back_populates="assignments")
     driver = relationship("Driver", back_populates="assignments")
     assigned_by_user = relationship("User", back_populates="assignments_created")
+    history_entries = relationship(
+        "AssignmentHistory",
+        back_populates="assignment",
+        cascade="all, delete-orphan",
+        order_by="AssignmentHistory.created_at",
+    )
 
     def __repr__(self) -> str:
         return (

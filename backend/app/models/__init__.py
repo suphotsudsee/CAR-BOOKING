@@ -13,6 +13,7 @@ from .driver import Driver, DriverStatus
 from .booking import BookingRequest, BookingStatus, VehiclePreference
 from .approval import Approval, ApprovalDecision, ApprovalDelegation
 from .assignment import Assignment
+from .assignment_history import AssignmentChangeReason, AssignmentHistory
 from .job_run import JobRun, JobRunStatus
 
 __all__ = [
@@ -34,6 +35,8 @@ __all__ = [
     "ApprovalDecision",
     "ApprovalDelegation",
     "Assignment",
+    "AssignmentChangeReason",
+    "AssignmentHistory",
     "JobRun",
     "JobRunStatus",
 ]

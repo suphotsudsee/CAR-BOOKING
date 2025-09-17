@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Iterable, Optional, Sequence
 
 from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.assignment import Assignment
+from app.models.assignment_history import AssignmentChangeReason, AssignmentHistory
 from app.models.booking import BookingRequest, BookingStatus, VehiclePreference
 from app.models.driver import Driver, DriverStatus
 from app.models.user import User
@@ -41,6 +42,63 @@ class _DriverCandidate:
     reasons: list[str]
 
 
+_DEFAULT_TYPE_PRIORITY: tuple[VehicleType, ...] = (
+    VehicleType.SEDAN,
+    VehicleType.VAN,
+    VehicleType.PICKUP,
+    VehicleType.BUS,
+    VehicleType.OTHER,
+)
+
+_PREFERENCE_PRIORITY: dict[VehiclePreference, tuple[VehicleType, ...]] = {
+    VehiclePreference.ANY: _DEFAULT_TYPE_PRIORITY,
+    VehiclePreference.SEDAN: (
+        VehicleType.SEDAN,
+        VehicleType.VAN,
+        VehicleType.PICKUP,
+        VehicleType.OTHER,
+        VehicleType.BUS,
+    ),
+    VehiclePreference.VAN: (
+        VehicleType.VAN,
+        VehicleType.BUS,
+        VehicleType.PICKUP,
+        VehicleType.SEDAN,
+        VehicleType.OTHER,
+    ),
+    VehiclePreference.PICKUP: (
+        VehicleType.PICKUP,
+        VehicleType.VAN,
+        VehicleType.SEDAN,
+        VehicleType.OTHER,
+        VehicleType.BUS,
+    ),
+    VehiclePreference.BUS: (
+        VehicleType.BUS,
+        VehicleType.VAN,
+        VehicleType.PICKUP,
+        VehicleType.OTHER,
+        VehicleType.SEDAN,
+    ),
+    VehiclePreference.OTHER: (
+        VehicleType.OTHER,
+        VehicleType.VAN,
+        VehicleType.SEDAN,
+        VehicleType.PICKUP,
+        VehicleType.BUS,
+    ),
+}
+
+_DRIVER_WORKLOAD_WINDOW = timedelta(days=7)
+_WORKLOAD_RELEVANT_STATUSES: frozenset[BookingStatus] = frozenset(
+    {
+        BookingStatus.APPROVED,
+        BookingStatus.ASSIGNED,
+        BookingStatus.IN_PROGRESS,
+    }
+)
+
+
 async def get_assignment_by_id(
     session: AsyncSession, assignment_id: int
 ) -> Optional[Assignment]:
@@ -69,6 +127,50 @@ def _matches_vehicle_preference(
     if preference == VehiclePreference.ANY:
         return True
     return vehicle_type.value == preference.value
+
+
+def _preference_rank(vehicle_type: VehicleType, preference: VehiclePreference) -> int:
+    """Return a zero-based rank expressing how closely a vehicle matches the preference."""
+
+    order = _PREFERENCE_PRIORITY.get(preference, _DEFAULT_TYPE_PRIORITY)
+    try:
+        return order.index(vehicle_type)
+    except ValueError:
+        return len(order)
+
+
+async def _summarise_driver_workload(
+    session: AsyncSession,
+    *,
+    driver_id: int,
+    reference_start: datetime,
+    reference_end: datetime,
+) -> tuple[int, float]:
+    """Return a tuple of (assignment_count, total_hours) near the booking window."""
+
+    window_start = reference_start - _DRIVER_WORKLOAD_WINDOW
+    window_end = reference_end + _DRIVER_WORKLOAD_WINDOW
+
+    stmt = (
+        select(BookingRequest.start_datetime, BookingRequest.end_datetime)
+        .join(Assignment)
+        .where(Assignment.driver_id == driver_id)
+        .where(BookingRequest.start_datetime < window_end)
+        .where(BookingRequest.end_datetime > window_start)
+        .where(BookingRequest.status.in_(_WORKLOAD_RELEVANT_STATUSES))
+        .order_by(BookingRequest.start_datetime)
+    )
+
+    result = await session.execute(stmt)
+    total_seconds = 0.0
+    count = 0
+
+    for start, end in result.all():
+        count += 1
+        total_seconds += max((end - start).total_seconds(), 0.0)
+
+    hours = total_seconds / 3600 if total_seconds else 0.0
+    return count, hours
 
 
 async def _collect_vehicle_candidates(
@@ -106,19 +208,24 @@ async def _collect_vehicle_candidates(
         if not available:
             continue
 
+        preference_rank = _preference_rank(vehicle.vehicle_type, preference)
         matches_preference = _matches_vehicle_preference(vehicle.vehicle_type, preference)
+        if preference == VehiclePreference.ANY:
+            preference_rank = 0
         spare_seats = max(vehicle.seating_capacity - booking_request.passenger_count, 0)
 
         reasons: list[str] = []
-        if preference != VehiclePreference.ANY:
-            if matches_preference:
+        if preference == VehiclePreference.ANY:
+            reasons.append("No specific vehicle preference supplied")
+        else:
+            if preference_rank == 0:
                 reasons.append("Matches preferred vehicle type")
             else:
-                reasons.append("Vehicle type differs from preference")
+                reasons.append(f"Closest available type (rank {preference_rank + 1})")
 
-        reasons.append(f"{spare_seats} spare seats")
+        reasons.append(f"{spare_seats} spare seats available")
 
-        score = (0 if matches_preference else 1) * 1_000_000
+        score = preference_rank * 1_000_000
         score += spare_seats * 1_000
         score += vehicle.id
 
@@ -182,7 +289,24 @@ async def _collect_driver_candidates(
         if driver.availability_schedule:
             reasons.append("Within configured availability schedule")
 
-        score = driver.id
+        assignment_count, workload_hours = await _summarise_driver_workload(
+            session,
+            driver_id=driver.id,
+            reference_start=booking_request.start_datetime,
+            reference_end=booking_request.end_datetime,
+        )
+
+        if assignment_count:
+            hours_display = f"{workload_hours:.1f}"
+            reasons.append(
+                f"Scheduled workload: {assignment_count} assignment(s) totalling {hours_display}h nearby"
+            )
+        else:
+            reasons.append("No competing assignments in the nearby window")
+
+        score = int(workload_hours * 1_000_000)
+        score += assignment_count * 1_000
+        score += driver.id
 
         suggestion = AssignmentDriverSuggestionData(
             id=driver.id,
@@ -397,15 +521,32 @@ async def create_assignment(
 
     booking.status = BookingStatus.ASSIGNED
 
+    timestamp = datetime.now(timezone.utc)
+
     assignment = Assignment(
         booking_request_id=booking.id,
         vehicle_id=vehicle.id,
         driver_id=driver.id,
         assigned_by=assigned_by.id,
+        assigned_at=timestamp,
         notes=assignment_in.notes,
     )
 
+    history_entry = AssignmentHistory(
+        assignment=assignment,
+        previous_vehicle_id=None,
+        previous_driver_id=None,
+        previous_notes=None,
+        vehicle_id=vehicle.id,
+        driver_id=driver.id,
+        assigned_by=assigned_by.id,
+        assigned_at=timestamp,
+        notes=assignment.notes,
+        change_reason=AssignmentChangeReason.CREATED,
+    )
+
     session.add(assignment)
+    session.add(history_entry)
     await session.commit()
     await session.refresh(assignment)
     await session.refresh(booking)
@@ -447,6 +588,10 @@ async def update_assignment(
             "Manual assignment requires both vehicle_id and driver_id to be provided"
         )
 
+    previous_vehicle_id = assignment.vehicle_id
+    previous_driver_id = assignment.driver_id
+    previous_notes = assignment.notes
+
     vehicle, driver = await _resolve_resources(
         session,
         booking_request=booking,
@@ -457,15 +602,32 @@ async def update_assignment(
         exclude_driver_ids=(assignment.driver_id,),
     )
 
+    timestamp = datetime.now(timezone.utc)
+
     assignment.vehicle_id = vehicle.id
     assignment.driver_id = driver.id
     assignment.assigned_by = assigned_by.id
-    assignment.assigned_at = datetime.now(timezone.utc)
+    assignment.assigned_at = timestamp
 
     if "notes" in assignment_update.model_fields_set:
         assignment.notes = assignment_update.notes
 
     booking.status = BookingStatus.ASSIGNED
+
+    history_entry = AssignmentHistory(
+        assignment=assignment,
+        previous_vehicle_id=previous_vehicle_id,
+        previous_driver_id=previous_driver_id,
+        previous_notes=previous_notes,
+        vehicle_id=vehicle.id,
+        driver_id=driver.id,
+        assigned_by=assigned_by.id,
+        assigned_at=timestamp,
+        notes=assignment.notes,
+        change_reason=AssignmentChangeReason.UPDATED,
+    )
+
+    session.add(history_entry)
 
     await session.commit()
     await session.refresh(assignment)
