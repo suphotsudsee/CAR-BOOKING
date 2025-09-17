@@ -2,7 +2,29 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { useAuth } from '@/context/AuthContext';
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
+
+interface NotificationResponse {
+  id: number;
+  title: string;
+  message: string;
+  category: string;
+  data?: Record<string, unknown> | null;
+  created_at: string;
+  read_at?: string | null;
+  delivered_channels?: string[] | null;
+  delivery_errors?: Record<string, string> | null;
+}
+
+interface NotificationPreferencesResponse {
+  in_app_enabled: boolean;
+  email_enabled: boolean;
+  line_enabled: boolean;
+  line_token_registered: boolean;
+  updated_at: string;
+}
 
 export interface NotificationItem {
   id: number;
@@ -44,7 +66,7 @@ export interface UseNotificationCenterResult {
   sendTestNotification: (title: string, message: string) => Promise<void>;
 }
 
-function normaliseNotification(payload: any): NotificationItem {
+function normaliseNotification(payload: NotificationResponse): NotificationItem {
   return {
     id: payload.id,
     title: payload.title,
@@ -58,7 +80,7 @@ function normaliseNotification(payload: any): NotificationItem {
   };
 }
 
-function normalisePreferences(payload: any): NotificationPreferences {
+function normalisePreferences(payload: NotificationPreferencesResponse): NotificationPreferences {
   return {
     inAppEnabled: payload.in_app_enabled,
     emailEnabled: payload.email_enabled,
@@ -68,28 +90,18 @@ function normalisePreferences(payload: any): NotificationPreferences {
   };
 }
 
-function buildHeaders(token: string | null) {
-  const headers: HeadersInit = { 'Content-Type': 'application/json' };
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
-  return headers;
-}
-
-export function useNotificationCenter(authToken: string | null): UseNotificationCenterResult {
+export function useNotificationCenter(): UseNotificationCenterResult {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [preferences, setPreferences] = useState<NotificationPreferences | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const hasToken = Boolean(authToken);
+  const { accessToken, authenticatedFetch, isAuthenticated } = useAuth();
 
   const fetchNotifications = useCallback(async () => {
-    if (!authToken) return;
-    const response = await fetch(`${API_URL}/api/v1/notifications/`, {
-      headers: buildHeaders(authToken),
-    });
+    if (!isAuthenticated) return;
+    const response = await authenticatedFetch(`${API_URL}/api/v1/notifications/`);
     if (!response.ok) {
       throw new Error('ไม่สามารถโหลดการแจ้งเตือน');
     }
@@ -97,51 +109,47 @@ export function useNotificationCenter(authToken: string | null): UseNotification
     const parsed = Array.isArray(data) ? data.map(normaliseNotification) : [];
     setNotifications(parsed);
     setUnreadCount(parsed.filter((item) => !item.readAt).length);
-  }, [authToken]);
+  }, [authenticatedFetch, isAuthenticated]);
 
   const fetchPreferences = useCallback(async () => {
-    if (!authToken) return;
-    const response = await fetch(`${API_URL}/api/v1/notifications/preferences`, {
-      headers: buildHeaders(authToken),
-    });
+    if (!isAuthenticated) return;
+    const response = await authenticatedFetch(`${API_URL}/api/v1/notifications/preferences`);
     if (!response.ok) {
       throw new Error('ไม่สามารถโหลดการตั้งค่าการแจ้งเตือน');
     }
     const data = await response.json();
     setPreferences(normalisePreferences(data));
-  }, [authToken]);
+  }, [authenticatedFetch, isAuthenticated]);
 
   const fetchUnread = useCallback(async () => {
-    if (!authToken) return;
-    const response = await fetch(`${API_URL}/api/v1/notifications/unread-count`, {
-      headers: buildHeaders(authToken),
-    });
+    if (!isAuthenticated) return;
+    const response = await authenticatedFetch(`${API_URL}/api/v1/notifications/unread-count`);
     if (!response.ok) return;
     const data = await response.json();
     if (typeof data?.unread === 'number') {
       setUnreadCount(data.unread);
     }
-  }, [authToken]);
+  }, [authenticatedFetch, isAuthenticated]);
 
   const refresh = useCallback(async () => {
-    if (!authToken) return;
+    if (!isAuthenticated) return;
     setLoading(true);
     setError(null);
     try {
       await Promise.all([fetchNotifications(), fetchPreferences(), fetchUnread()]);
-    } catch (err: any) {
-      setError(err.message ?? 'เกิดข้อผิดพลาด');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'เกิดข้อผิดพลาด';
+      setError(message);
     } finally {
       setLoading(false);
     }
-  }, [authToken, fetchNotifications, fetchPreferences, fetchUnread]);
+  }, [fetchNotifications, fetchPreferences, fetchUnread, isAuthenticated]);
 
   const markAsRead = useCallback(
     async (id: number) => {
-      if (!authToken) return;
-      const response = await fetch(`${API_URL}/api/v1/notifications/${id}/read`, {
+      if (!isAuthenticated) return;
+      const response = await authenticatedFetch(`${API_URL}/api/v1/notifications/${id}/read`, {
         method: 'POST',
-        headers: buildHeaders(authToken),
       });
       if (!response.ok) {
         throw new Error('ไม่สามารถอัปเดตสถานะการอ่าน');
@@ -165,28 +173,26 @@ export function useNotificationCenter(authToken: string | null): UseNotification
         return nextItems;
       });
     },
-    [authToken]
+    [authenticatedFetch, isAuthenticated]
   );
 
   const markAllRead = useCallback(async () => {
-    if (!authToken) return;
-    const response = await fetch(`${API_URL}/api/v1/notifications/read-all`, {
+    if (!isAuthenticated) return;
+    const response = await authenticatedFetch(`${API_URL}/api/v1/notifications/read-all`, {
       method: 'POST',
-      headers: buildHeaders(authToken),
     });
     if (!response.ok) {
       throw new Error('ไม่สามารถอัปเดตสถานะการอ่านทั้งหมด');
     }
     setNotifications((items) => items.map((item) => ({ ...item, readAt: new Date().toISOString() })));
     setUnreadCount(0);
-  }, [authToken]);
+  }, [authenticatedFetch, isAuthenticated]);
 
   const updatePreferences = useCallback(
     async (payload: PreferencesUpdatePayload) => {
-      if (!authToken) return;
-      const response = await fetch(`${API_URL}/api/v1/notifications/preferences`, {
+      if (!isAuthenticated) return;
+      const response = await authenticatedFetch(`${API_URL}/api/v1/notifications/preferences`, {
         method: 'PUT',
-        headers: buildHeaders(authToken),
         body: JSON.stringify(payload),
       });
       if (!response.ok) {
@@ -195,15 +201,14 @@ export function useNotificationCenter(authToken: string | null): UseNotification
       const data = await response.json();
       setPreferences(normalisePreferences(data));
     },
-    [authToken]
+    [authenticatedFetch, isAuthenticated]
   );
 
   const sendTestNotification = useCallback(
     async (title: string, message: string) => {
-      if (!authToken) return;
-      const response = await fetch(`${API_URL}/api/v1/notifications/dispatch-test`, {
+      if (!isAuthenticated) return;
+      const response = await authenticatedFetch(`${API_URL}/api/v1/notifications/dispatch-test`, {
         method: 'POST',
-        headers: buildHeaders(authToken),
         body: JSON.stringify({ title, message, category: 'test' }),
       });
       if (!response.ok) {
@@ -214,31 +219,31 @@ export function useNotificationCenter(authToken: string | null): UseNotification
       setNotifications((items) => [created, ...items.filter((item) => item.id !== created.id)]);
       setUnreadCount((count) => count + 1);
     },
-    [authToken]
+    [authenticatedFetch, isAuthenticated]
   );
 
   useEffect(() => {
-    if (!hasToken) {
+    if (!isAuthenticated) {
       setNotifications([]);
       setPreferences(null);
       setUnreadCount(0);
       return;
     }
     refresh();
-  }, [hasToken, refresh]);
+  }, [isAuthenticated, refresh]);
 
   const websocketUrl = useMemo(() => {
-    if (!authToken || !API_URL) return null;
+    if (!accessToken || !API_URL) return null;
     try {
       const url = new URL('/ws/notifications', API_URL);
       url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
-      url.searchParams.set('token', authToken);
+      url.searchParams.set('token', accessToken);
       return url.toString();
     } catch (err) {
       console.error('Unable to construct notification websocket URL', err);
       return null;
     }
-  }, [authToken]);
+  }, [accessToken]);
 
   useEffect(() => {
     if (!websocketUrl) return;

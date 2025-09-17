@@ -1,14 +1,17 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useState } from 'react';
+
 import { AuthLayout } from '@/components/auth/AuthLayout';
+import { useAuth } from '@/context/AuthContext';
 
 const loginSchema = z.object({
-  email: z.string().min(1, 'กรุณากรอกอีเมล').email('รูปแบบอีเมลไม่ถูกต้อง'),
+  username: z.string().min(1, 'กรุณากรอกชื่อผู้ใช้หรืออีเมล'),
   password: z.string().min(8, 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร'),
   remember: z.boolean().optional(),
 });
@@ -16,8 +19,11 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
+  const router = useRouter();
+  const { login } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionMessage, setSubmissionMessage] = useState<string | null>(null);
+  const [messageVariant, setMessageVariant] = useState<'success' | 'error'>('success');
 
   const {
     register,
@@ -26,7 +32,7 @@ export default function LoginPage() {
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: '',
+      username: '',
       password: '',
       remember: true,
     },
@@ -36,12 +42,22 @@ export default function LoginPage() {
     setIsSubmitting(true);
     setSubmissionMessage(null);
 
-    await new Promise((resolve) => setTimeout(resolve, 600));
-
-    setSubmissionMessage(
-      `สวัสดี ${values.email}! ระบบกำลังตรวจสอบสิทธิ์ของคุณและเชื่อมต่อกับแดชบอร์ดการจองรถ`,
-    );
-    setIsSubmitting(false);
+    try {
+      await login({
+        username: values.username,
+        password: values.password,
+        remember: values.remember,
+      });
+      setSubmissionMessage('เข้าสู่ระบบสำเร็จ ระบบกำลังพาคุณไปยังหน้าโปรไฟล์');
+      setMessageVariant('success');
+      router.push('/profile');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'ไม่สามารถเข้าสู่ระบบได้';
+      setSubmissionMessage(message);
+      setMessageVariant('error');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -65,18 +81,18 @@ export default function LoginPage() {
     >
       <form className="space-y-6" onSubmit={handleSubmit(onSubmit)} noValidate>
         <div>
-          <label htmlFor="email" className="form-label">
-            อีเมลองค์กร
+          <label htmlFor="username" className="form-label">
+            ชื่อผู้ใช้หรืออีเมล
           </label>
           <input
-            id="email"
-            type="email"
-            autoComplete="email"
+            id="username"
+            type="text"
+            autoComplete="username"
             className="form-input"
-            placeholder="name@company.co.th"
-            {...register('email')}
+            placeholder="กรอกชื่อผู้ใช้หรืออีเมลองค์กร"
+            {...register('username')}
           />
-          {errors.email ? <p className="form-error">{errors.email.message}</p> : null}
+          {errors.username ? <p className="form-error">{errors.username.message}</p> : null}
         </div>
 
         <div>
@@ -108,7 +124,7 @@ export default function LoginPage() {
             />
             จดจำการเข้าสู่ระบบในอุปกรณ์นี้
           </label>
-          <span className="text-xs text-gray-400">เข้ารหัสด้วยมาตรฐาน OAuth 2.0</span>
+          <span className="text-xs text-gray-400">โทเคนจะถูกต่ออายุอัตโนมัติ</span>
         </div>
 
         <button
@@ -120,7 +136,15 @@ export default function LoginPage() {
         </button>
 
         {submissionMessage ? (
-          <div className="rounded-lg bg-success-50 p-4 text-sm text-success-700">{submissionMessage}</div>
+          <div
+            className={
+              messageVariant === 'success'
+                ? 'rounded-lg bg-success-50 p-4 text-sm text-success-700'
+                : 'rounded-lg bg-red-50 p-4 text-sm text-red-700'
+            }
+          >
+            {submissionMessage}
+          </div>
         ) : null}
       </form>
     </AuthLayout>
