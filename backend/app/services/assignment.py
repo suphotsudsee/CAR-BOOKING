@@ -15,6 +15,7 @@ from app.models.booking import BookingRequest, BookingStatus, VehiclePreference
 from app.models.driver import Driver, DriverStatus
 from app.models.user import User
 from app.models.vehicle import Vehicle, VehicleStatus, VehicleType
+from app.models.job_run import JobRun
 from app.schemas.assignment import (
     AssignmentCreate,
     AssignmentDriverSuggestionData,
@@ -521,6 +522,9 @@ async def create_assignment(
 
     booking.status = BookingStatus.ASSIGNED
 
+    if booking.job_run is None:
+        booking.job_run = JobRun(booking_request_id=booking.id)
+
     timestamp = datetime.now(timezone.utc)
 
     assignment = Assignment(
@@ -613,6 +617,9 @@ async def update_assignment(
         assignment.notes = assignment_update.notes
 
     booking.status = BookingStatus.ASSIGNED
+
+    if booking.job_run is None:
+        booking.job_run = JobRun(booking_request_id=booking.id)
 
     history_entry = AssignmentHistory(
         assignment=assignment,

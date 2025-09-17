@@ -66,6 +66,11 @@ from .assignment import (
     suggest_assignment_options,
     update_assignment,
 )
+from .job_run import (
+    get_job_run_by_booking_id,
+    record_job_check_in,
+    record_job_check_out,
+)
 
 __all__ = [
     "change_user_password",
@@ -122,4 +127,7 @@ __all__ = [
     "get_assignment_by_id",
     "suggest_assignment_options",
     "update_assignment",
+    "get_job_run_by_booking_id",
+    "record_job_check_in",
+    "record_job_check_out",
 ]
