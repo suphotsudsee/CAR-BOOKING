@@ -1,0 +1,14 @@
+{{ subject }}
+
+สวัสดี {{ recipient_name or "" }},
+สถานะคำขอจองรถของคุณถูกอัปเดตเป็น {{ booking_status }}
+
+รายละเอียดการจอง:
+- รหัสการจอง: {{ booking_code }}
+- วัตถุประสงค์: {{ booking_purpose }}
+- วันและเวลาออกเดินทาง: {{ departure_at }}
+{% if driver_name %}- คนขับ: {{ driver_name }}{% endif %}
+{% if cta_url %}
+ดูรายละเอียดเพิ่มเติม: {{ cta_url }}
+{% endif %}
+ขอบคุณที่ใช้ระบบจองรถสำนักงาน

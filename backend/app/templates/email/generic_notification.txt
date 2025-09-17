@@ -1,0 +1,11 @@
+{{ subject }}
+
+{{ message }}
+{% if cta_url %}
+Action: {{ cta_label or "Open" }}
+Link: {{ cta_url }}
+{% endif %}
+{% if footer_text %}
+---
+{{ footer_text }}
+{% endif %}

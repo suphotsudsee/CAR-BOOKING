@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>{{ subject }}</title>
+    <style>
+      body {
+        font-family: "Helvetica Neue", Arial, sans-serif;
+        background-color: #f5f5f5;
+        color: #333333;
+        margin: 0;
+        padding: 0;
+      }
+      .container {
+        max-width: 640px;
+        margin: 32px auto;
+        background-color: #ffffff;
+        padding: 32px;
+        border-radius: 8px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+      }
+      h1 {
+        font-size: 20px;
+        margin: 0 0 16px 0;
+        color: #1f2937;
+      }
+      p {
+        line-height: 1.6;
+        margin: 0 0 16px 0;
+      }
+      .cta {
+        display: inline-block;
+        padding: 12px 18px;
+        background-color: #2563eb;
+        color: #ffffff !important;
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: 600;
+      }
+      .footer {
+        margin-top: 24px;
+        font-size: 12px;
+        color: #6b7280;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>{{ subject }}</h1>
+      <p>{{ message }}</p>
+      {% if cta_url %}
+      <p>
+        <a class="cta" href="{{ cta_url }}" target="_blank" rel="noopener">{{ cta_label or "Open" }}</a>
+      </p>
+      {% endif %}
+      {% if footer_text %}
+      <p class="footer">{{ footer_text }}</p>
+      {% endif %}
+    </div>
+  </body>
+</html>
