@@ -15,6 +15,7 @@ from .approval import Approval, ApprovalDecision, ApprovalDelegation
 from .assignment import Assignment
 from .assignment_history import AssignmentChangeReason, AssignmentHistory
 from .job_run import JobRun, JobRunStatus, ExpenseStatus
+from .notification import Notification, NotificationChannel, NotificationPreference
 from .calendar_event import (
     ResourceCalendarEvent,
     CalendarEventType,
@@ -48,4 +49,7 @@ __all__ = [
     "JobRun",
     "JobRunStatus",
     "ExpenseStatus",
+    "Notification",
+    "NotificationChannel",
+    "NotificationPreference",
 ]

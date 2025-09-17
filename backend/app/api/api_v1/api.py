@@ -12,6 +12,7 @@ from app.api.api_v1.endpoints import (
     drivers,
     health,
     job_runs,
+    notifications,
     uploads,
     users,
     vehicles,
@@ -33,4 +34,7 @@ api_router.include_router(
     calendar.router, prefix="/calendar", tags=["calendar"]
 )
 api_router.include_router(job_runs.router, prefix="/job-runs", tags=["job-runs"])
+api_router.include_router(
+    notifications.router, prefix="/notifications", tags=["notifications"]
+)
 api_router.include_router(uploads.router, prefix="/uploads", tags=["uploads"])
