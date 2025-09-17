@@ -15,6 +15,11 @@ from .approval import Approval, ApprovalDecision, ApprovalDelegation
 from .assignment import Assignment
 from .assignment_history import AssignmentChangeReason, AssignmentHistory
 from .job_run import JobRun, JobRunStatus, ExpenseStatus
+from .calendar_event import (
+    ResourceCalendarEvent,
+    CalendarEventType,
+    CalendarResourceType,
+)
 
 __all__ = [
     "Base",
@@ -31,6 +36,9 @@ __all__ = [
     "BookingRequest",
     "BookingStatus",
     "VehiclePreference",
+    "ResourceCalendarEvent",
+    "CalendarResourceType",
+    "CalendarEventType",
     "Approval",
     "ApprovalDecision",
     "ApprovalDelegation",
