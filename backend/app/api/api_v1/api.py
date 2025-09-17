@@ -13,6 +13,7 @@ from app.api.api_v1.endpoints import (
     health,
     job_runs,
     notifications,
+    reports,
     uploads,
     users,
     vehicles,
@@ -38,3 +39,4 @@ api_router.include_router(
     notifications.router, prefix="/notifications", tags=["notifications"]
 )
 api_router.include_router(uploads.router, prefix="/uploads", tags=["uploads"])
+api_router.include_router(reports.router, prefix="/reports", tags=["reports"])
