@@ -11,7 +11,7 @@ from starlette.datastructures import UploadFile
 
 from app.models.booking import BookingRequest, BookingStatus
 from app.models.driver import DriverStatus
-from app.models.job_run import JobRun, JobRunStatus
+from app.models.job_run import ExpenseStatus, JobRun, JobRunStatus
 from app.models.user import User, UserRole
 from app.models.vehicle import FuelType, VehicleStatus, VehicleType
 from app.schemas import (
@@ -30,9 +30,11 @@ from app.services import (
     create_driver,
     create_user,
     create_vehicle,
+    generate_expense_analytics,
     get_booking_request_by_id,
     record_job_check_in,
     record_job_check_out,
+    review_job_expenses,
     transition_booking_status,
 )
 from app.services.image import process_vehicle_image_upload, store_vehicle_image
@@ -117,7 +119,9 @@ async def _create_vehicle(
     return vehicle.id
 
 
-async def _prepare_assigned_booking(session: AsyncSession) -> BookingRequest:
+async def _prepare_assigned_booking(
+    session: AsyncSession,
+) -> tuple[BookingRequest, User]:
     manager = await _create_manager(session)
     _, driver_id = await _create_driver_with_user(session, employee_code="DRV100")
     vehicle_id = await _create_vehicle(session, registration="B 1234 XYZ")
@@ -155,14 +159,14 @@ async def _prepare_assigned_booking(session: AsyncSession) -> BookingRequest:
 
     refreshed = await get_booking_request_by_id(session, booking.id)
     assert refreshed is not None
-    return refreshed
+    return refreshed, manager
 
 
 @pytest.mark.asyncio
 async def test_check_in_updates_status_and_details(
     async_session: AsyncSession,
 ) -> None:
-    booking = await _prepare_assigned_booking(async_session)
+    booking, _ = await _prepare_assigned_booking(async_session)
 
     check_in_time = datetime.now(timezone.utc)
     job_run = await record_job_check_in(
@@ -193,7 +197,7 @@ async def test_check_in_updates_status_and_details(
 async def test_check_out_records_expenses_and_completes(
     async_session: AsyncSession,
 ) -> None:
-    booking = await _prepare_assigned_booking(async_session)
+    booking, _ = await _prepare_assigned_booking(async_session)
 
     check_in_time = datetime.now(timezone.utc)
     await record_job_check_in(
@@ -225,6 +229,7 @@ async def test_check_out_records_expenses_and_completes(
     assert job_run.checkout_mileage == 20640
     assert job_run.total_distance == 140
     assert job_run.total_expenses == Decimal("66.25")
+    assert job_run.expense_status == ExpenseStatus.PENDING_REVIEW
 
     stored = await get_booking_request_by_id(async_session, booking.id)
     assert stored is not None
@@ -232,10 +237,116 @@ async def test_check_out_records_expenses_and_completes(
 
 
 @pytest.mark.asyncio
+async def test_review_job_expenses_updates_status(
+    async_session: AsyncSession,
+) -> None:
+    booking, manager = await _prepare_assigned_booking(async_session)
+
+    check_in_time = datetime.now(timezone.utc)
+    await record_job_check_in(
+        async_session,
+        booking_request=booking,
+        payload=JobRunCheckIn(
+            checkin_datetime=check_in_time,
+            checkin_mileage=30500,
+        ),
+    )
+
+    checkout_time = check_in_time + timedelta(hours=2)
+    await record_job_check_out(
+        async_session,
+        booking_request=booking,
+        payload=JobRunCheckOut(
+            checkout_datetime=checkout_time,
+            checkout_mileage=30560,
+            fuel_cost=Decimal("30.00"),
+            toll_cost=Decimal("5.00"),
+        ),
+    )
+
+    reviewed = await review_job_expenses(
+        async_session,
+        booking_request=booking,
+        reviewer=manager,
+        decision=ExpenseStatus.APPROVED,
+        notes="  Accurate receipts  ",
+    )
+
+    assert reviewed.expense_status == ExpenseStatus.APPROVED
+    assert reviewed.expense_reviewed_by_id == manager.id
+    assert reviewed.expense_reviewed_at is not None
+    assert reviewed.expense_review_notes == "Accurate receipts"
+
+
+@pytest.mark.asyncio
+async def test_review_job_expenses_requires_completed_job(
+    async_session: AsyncSession,
+) -> None:
+    booking, manager = await _prepare_assigned_booking(async_session)
+
+    with pytest.raises(ValueError):
+        await review_job_expenses(
+            async_session,
+            booking_request=booking,
+            reviewer=manager,
+            decision=ExpenseStatus.APPROVED,
+        )
+
+
+@pytest.mark.asyncio
+async def test_generate_expense_analytics_returns_totals(
+    async_session: AsyncSession,
+) -> None:
+    booking, manager = await _prepare_assigned_booking(async_session)
+
+    check_in_time = datetime.now(timezone.utc)
+    await record_job_check_in(
+        async_session,
+        booking_request=booking,
+        payload=JobRunCheckIn(
+            checkin_datetime=check_in_time,
+            checkin_mileage=40000,
+        ),
+    )
+
+    checkout_time = check_in_time + timedelta(hours=1)
+    await record_job_check_out(
+        async_session,
+        booking_request=booking,
+        payload=JobRunCheckOut(
+            checkout_datetime=checkout_time,
+            checkout_mileage=40080,
+            fuel_cost=Decimal("20.00"),
+            toll_cost=Decimal("4.50"),
+            other_expenses=Decimal("3.50"),
+        ),
+    )
+
+    await review_job_expenses(
+        async_session,
+        booking_request=booking,
+        reviewer=manager,
+        decision=ExpenseStatus.REJECTED,
+        notes="Missing toll receipt",
+    )
+
+    analytics = await generate_expense_analytics(async_session)
+
+    assert analytics.total_jobs == 1
+    assert analytics.total_fuel_cost == Decimal("20.00")
+    assert analytics.total_toll_cost == Decimal("4.50")
+    assert analytics.total_other_expenses == Decimal("3.50")
+    assert analytics.total_expenses == Decimal("28.00")
+    assert analytics.average_total_expense == Decimal("28.00")
+    assert analytics.status_breakdown[0].status == ExpenseStatus.REJECTED
+    assert analytics.status_breakdown[0].count == 1
+
+
+@pytest.mark.asyncio
 async def test_check_out_requires_prior_check_in(
     async_session: AsyncSession,
 ) -> None:
-    booking = await _prepare_assigned_booking(async_session)
+    booking, _ = await _prepare_assigned_booking(async_session)
 
     checkout_time = datetime.now(timezone.utc) + timedelta(hours=3)
     with pytest.raises(ValueError):
@@ -253,7 +364,7 @@ async def test_check_out_requires_prior_check_in(
 async def test_duplicate_check_in_not_allowed(
     async_session: AsyncSession,
 ) -> None:
-    booking = await _prepare_assigned_booking(async_session)
+    booking, _ = await _prepare_assigned_booking(async_session)
     check_in_time = datetime.now(timezone.utc)
 
     await record_job_check_in(

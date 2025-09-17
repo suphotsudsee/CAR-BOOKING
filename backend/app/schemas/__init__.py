@@ -40,6 +40,13 @@ from .driver import (
     DriverStatusUpdate,
     DriverUpdate,
 )
+from .expense import (
+    ExpenseAnalytics,
+    ExpenseReceiptUploadResponse,
+    ExpenseReviewDecision,
+    ExpenseStatusSummary,
+    JobRunExpenseReview,
+)
 from .image import (
     GalleryImage,
     JobRunImageGallery,
@@ -107,7 +114,12 @@ __all__ = [
     "AssignmentUpdate",
     "AssignmentVehicleSuggestion",
     "AssignmentVehicleSuggestionData",
+    "ExpenseAnalytics",
+    "ExpenseReceiptUploadResponse",
+    "ExpenseReviewDecision",
+    "ExpenseStatusSummary",
     "GalleryImage",
+    "JobRunExpenseReview",
     "JobRunImageGallery",
     "JobRunCheckIn",
     "JobRunCheckOut",
