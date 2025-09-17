@@ -6,6 +6,8 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AuthLayout } from '@/components/auth/AuthLayout';
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import { USER_ROLES } from '@/context/AuthContext';
 import { CheckCircle2, Copy, RefreshCw, ShieldAlert, Smartphone } from 'lucide-react';
 
 type TwoFactorMethod = 'authenticator' | 'sms';
@@ -45,7 +47,7 @@ function generateSecretKey() {
   return Math.random().toString(36).slice(2, 10).toUpperCase();
 }
 
-export default function AdminTwoFactorPage() {
+function AdminTwoFactorContent() {
   const [selectedMethod, setSelectedMethod] = useState<TwoFactorMethod>('authenticator');
   const [secretKey, setSecretKey] = useState(() => generateSecretKey());
   const [backupCodes, setBackupCodes] = useState(() => generateBackupCodes());
@@ -275,5 +277,13 @@ export default function AdminTwoFactorPage() {
         </section>
       </div>
     </AuthLayout>
+  );
+}
+
+export default function AdminTwoFactorPage() {
+  return (
+    <ProtectedRoute roles={[USER_ROLES.FLEET_ADMIN, USER_ROLES.MANAGER]}>
+      <AdminTwoFactorContent />
+    </ProtectedRoute>
   );
 }

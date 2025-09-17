@@ -26,8 +26,9 @@ export function NotificationPreferencesForm({
     try {
       await onUpdate({ [field]: value } as PreferencesUpdatePayload);
       setStatus('บันทึกการตั้งค่าเรียบร้อยแล้ว');
-    } catch (err: any) {
-      setStatus(err.message ?? 'เกิดข้อผิดพลาดในการบันทึก');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการบันทึก';
+      setStatus(message);
     } finally {
       setSaving(false);
     }
@@ -41,8 +42,9 @@ export function NotificationPreferencesForm({
       await onUpdate({ line_access_token: lineToken || null });
       setLineToken('');
       setStatus('อัปเดต LINE Notify token สำเร็จ');
-    } catch (err: any) {
-      setStatus(err.message ?? 'ไม่สามารถอัปเดต LINE token');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'ไม่สามารถอัปเดต LINE token';
+      setStatus(message);
     } finally {
       setSaving(false);
     }

@@ -2,15 +2,14 @@
 
 import { FormEvent, useState } from 'react';
 
+import { useAuth } from '@/context/AuthContext';
+
 import { NotificationHistoryList } from './NotificationHistoryList';
 import { NotificationPreferencesForm } from './NotificationPreferencesForm';
 import { useNotificationCenter } from './useNotificationCenter';
 
-interface NotificationCenterProps {
-  authToken: string | null;
-}
-
-export function NotificationCenter({ authToken }: NotificationCenterProps) {
+export function NotificationCenter() {
+  const { isAuthenticated } = useAuth();
   const {
     notifications,
     preferences,
@@ -22,14 +21,14 @@ export function NotificationCenter({ authToken }: NotificationCenterProps) {
     markAllRead,
     updatePreferences,
     sendTestNotification,
-  } = useNotificationCenter(authToken);
+  } = useNotificationCenter();
 
   const [testTitle, setTestTitle] = useState('ทดสอบระบบแจ้งเตือน');
   const [testMessage, setTestMessage] = useState('นี่คือข้อความตัวอย่างสำหรับตรวจสอบการตั้งค่า');
   const [sendingTest, setSendingTest] = useState(false);
   const [testStatus, setTestStatus] = useState<string | null>(null);
 
-  if (!authToken) {
+  if (!isAuthenticated) {
     return (
       <div className="rounded-lg border border-dashed border-gray-300 bg-white p-6 text-center shadow-sm">
         <h3 className="text-lg font-semibold text-gray-900">เข้าสู่ระบบเพื่อดูการแจ้งเตือน</h3>
@@ -47,8 +46,9 @@ export function NotificationCenter({ authToken }: NotificationCenterProps) {
     try {
       await sendTestNotification(testTitle, testMessage);
       setTestStatus('ส่งข้อความทดสอบเรียบร้อยแล้ว');
-    } catch (err: any) {
-      setTestStatus(err.message ?? 'ไม่สามารถส่งข้อความทดสอบ');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'ไม่สามารถส่งข้อความทดสอบ';
+      setTestStatus(message);
     } finally {
       setSendingTest(false);
     }
