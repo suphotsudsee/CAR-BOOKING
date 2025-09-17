@@ -69,6 +69,28 @@ from .calendar import (
     update_calendar_event,
 )
 from .notification import NotificationService, notification_broadcaster
+from .system_config import (
+    add_holiday,
+    get_system_configuration,
+    list_holidays,
+    list_working_hours,
+    remove_holiday,
+    remove_working_hour,
+    update_system_configuration,
+    upsert_working_hour,
+)
+from .audit import (
+    count_audit_logs,
+    get_audit_log_statistics,
+    get_user_activity_report,
+    log_audit_event,
+    search_audit_logs,
+)
+from .monitoring import (
+    get_health_summary,
+    list_recent_health_checks,
+    record_health_status,
+)
 from .user import (
     change_user_password,
     create_user,
@@ -173,4 +195,20 @@ __all__ = [
     "update_calendar_event",
     "NotificationService",
     "notification_broadcaster",
+    "add_holiday",
+    "get_system_configuration",
+    "list_holidays",
+    "list_working_hours",
+    "remove_holiday",
+    "remove_working_hour",
+    "update_system_configuration",
+    "upsert_working_hour",
+    "get_audit_log_statistics",
+    "get_user_activity_report",
+    "count_audit_logs",
+    "log_audit_event",
+    "search_audit_logs",
+    "get_health_summary",
+    "list_recent_health_checks",
+    "record_health_status",
 ]

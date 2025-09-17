@@ -22,6 +22,13 @@ from .calendar_event import (
     CalendarResourceType,
 )
 from .notification import EmailDeliveryStatus, EmailNotification
+from .system import (
+    AuditLog,
+    SystemConfiguration,
+    SystemHealthRecord,
+    SystemHoliday,
+    SystemWorkingHour,
+)
 
 __all__ = [
     "Base",
@@ -53,4 +60,9 @@ __all__ = [
     "Notification",
     "NotificationChannel",
     "NotificationPreference",
+    "AuditLog",
+    "SystemConfiguration",
+    "SystemHealthRecord",
+    "SystemHoliday",
+    "SystemWorkingHour",
 ]
