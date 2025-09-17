@@ -1,10 +1,11 @@
-"""Notification-related database models."""
+"""Notification-related database models and helper dataclasses."""
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Optional
+from typing import Any, Optional
 
 from sqlalchemy import JSON, DateTime, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -32,7 +33,7 @@ class Notification(Base, TimestampMixin):
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     message: Mapped[str] = mapped_column(String(2000), nullable=False)
     category: Mapped[str] = mapped_column(String(50), nullable=False, default="general")
-    data: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    data: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON, nullable=True)
     read_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     delivered_channels: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     delivery_errors: Mapped[dict[str, str]] = mapped_column(JSON, nullable=False, default=dict)
@@ -74,9 +75,107 @@ class NotificationPreference(Base, TimestampMixin):
         return False
 
 
+class EmailDeliveryState(str, Enum):
+    """High level states representing email delivery progress."""
+
+    QUEUED = "queued"
+    RETRYING = "retrying"
+    SENT = "sent"
+    FAILED = "failed"
+
+
+@dataclass(slots=True)
+class EmailDeliveryStatus:
+    """Details recorded for an email delivery attempt."""
+
+    status: EmailDeliveryState
+    status_code: Optional[int] = None
+    status_text: Optional[str] = None
+    message_id: Optional[str] = None
+    error: Optional[str] = None
+    attempts: int = 0
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialise the status to a JSON-compatible dictionary."""
+
+        return {
+            "status": self.status.value,
+            "status_code": self.status_code,
+            "status_text": self.status_text,
+            "message_id": self.message_id,
+            "error": self.error,
+            "attempts": self.attempts,
+        }
+
+    @classmethod
+    def from_dict(cls, payload: dict[str, Any]) -> "EmailDeliveryStatus":
+        """Create a status instance from a stored dictionary."""
+
+        status_value = payload.get("status", EmailDeliveryState.QUEUED.value)
+        return cls(
+            status=EmailDeliveryState(status_value),
+            status_code=payload.get("status_code"),
+            status_text=payload.get("status_text"),
+            message_id=payload.get("message_id"),
+            error=payload.get("error"),
+            attempts=int(payload.get("attempts", 0)),
+        )
+
+
+@dataclass(slots=True)
+class EmailNotification:
+    """Payload describing an email notification to be delivered."""
+
+    to_email: str
+    subject: str
+    template_name: str
+    context: Optional[dict[str, Any]] = None
+    cc: Optional[list[str]] = None
+    bcc: Optional[list[str]] = None
+    reply_to: Optional[str] = None
+    notification_id: Optional[int] = None
+    user_id: Optional[int] = None
+    metadata: Optional[dict[str, Any]] = None
+
+    def to_payload(self) -> dict[str, Any]:
+        """Serialise the notification for Celery task transport."""
+
+        return {
+            "to_email": self.to_email,
+            "subject": self.subject,
+            "template_name": self.template_name,
+            "context": self.context or {},
+            "cc": self.cc or [],
+            "bcc": self.bcc or [],
+            "reply_to": self.reply_to,
+            "notification_id": self.notification_id,
+            "user_id": self.user_id,
+            "metadata": self.metadata or {},
+        }
+
+    @classmethod
+    def from_payload(cls, payload: dict[str, Any]) -> "EmailNotification":
+        """Rehydrate a notification from a Celery payload."""
+
+        return cls(
+            to_email=payload["to_email"],
+            subject=payload["subject"],
+            template_name=payload["template_name"],
+            context=payload.get("context") or {},
+            cc=list(payload.get("cc") or []),
+            bcc=list(payload.get("bcc") or []),
+            reply_to=payload.get("reply_to"),
+            notification_id=payload.get("notification_id"),
+            user_id=payload.get("user_id"),
+            metadata=payload.get("metadata") or {},
+        )
+
+
 __all__ = [
+    "EmailDeliveryState",
+    "EmailDeliveryStatus",
+    "EmailNotification",
     "Notification",
     "NotificationChannel",
     "NotificationPreference",
 ]
-

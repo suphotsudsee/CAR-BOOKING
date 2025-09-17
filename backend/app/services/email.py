@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Any, Iterable, Optional
 
 import emails
-from emails.backend.smtp import MailResponse
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound, select_autoescape
 
 from app.core.config import settings
@@ -150,7 +149,7 @@ class EmailService:
         to: str,
         cc: Iterable[str],
         bcc: Iterable[str],
-    ) -> MailResponse:
+    ) -> Any:
         return message.send(
             to=to,
             cc=list(cc) or None,
