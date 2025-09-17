@@ -59,6 +59,13 @@ from .driver import (
     update_driver_availability,
     update_driver_status,
 )
+from .assignment import (
+    create_assignment,
+    get_assignment_by_booking_id,
+    get_assignment_by_id,
+    suggest_assignment_options,
+    update_assignment,
+)
 
 __all__ = [
     "change_user_password",
@@ -110,4 +117,9 @@ __all__ = [
     "update_driver",
     "update_driver_availability",
     "update_driver_status",
+    "create_assignment",
+    "get_assignment_by_booking_id",
+    "get_assignment_by_id",
+    "suggest_assignment_options",
+    "update_assignment",
 ]

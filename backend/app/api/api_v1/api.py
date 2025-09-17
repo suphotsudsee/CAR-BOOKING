@@ -4,7 +4,15 @@ API v1 router
 
 from fastapi import APIRouter
 
-from app.api.api_v1.endpoints import auth, bookings, drivers, health, users, vehicles
+from app.api.api_v1.endpoints import (
+    assignments,
+    auth,
+    bookings,
+    drivers,
+    health,
+    users,
+    vehicles,
+)
 
 api_router = APIRouter()
 
@@ -15,3 +23,4 @@ api_router.include_router(users.router, prefix="/users", tags=["users"])
 api_router.include_router(vehicles.router, prefix="/vehicles", tags=["vehicles"])
 api_router.include_router(drivers.router, prefix="/drivers", tags=["drivers"])
 api_router.include_router(bookings.router, prefix="/bookings", tags=["bookings"])
+api_router.include_router(assignments.router, prefix="/assignments", tags=["assignments"])
