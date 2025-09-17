@@ -1,0 +1,38 @@
+{
+  "name": "Office Vehicle Booking System",
+  "short_name": "OVBS",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f172a",
+  "theme_color": "#2563eb",
+  "description": "บริหารจัดการการจองรถสำนักงานและการอนุมัติผ่านมือถือได้ทุกที่",
+  "icons": [
+    {
+      "src": "/icons/app-icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    },
+    {
+      "src": "/icons/app-icon-maskable.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "สร้างคำขอจองรถ",
+      "short_name": "จองรถ",
+      "description": "เริ่มสร้างคำขอการใช้รถสำนักงาน",
+      "url": "/bookings/new"
+    },
+    {
+      "name": "ดูการแจ้งเตือน",
+      "short_name": "แจ้งเตือน",
+      "description": "ตรวจสอบการอนุมัติล่าสุด",
+      "url": "/notifications"
+    }
+  ]
+}

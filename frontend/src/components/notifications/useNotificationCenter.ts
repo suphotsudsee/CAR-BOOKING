@@ -3,6 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useAuth } from '@/context/AuthContext';
+import {
+  queueBackgroundRequest,
+  registerBackgroundSync,
+  subscribeUserToPush,
+} from '@/lib/pwa/client';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 
@@ -63,7 +68,8 @@ export interface UseNotificationCenterResult {
   markAsRead: (id: number) => Promise<void>;
   markAllRead: () => Promise<void>;
   updatePreferences: (payload: PreferencesUpdatePayload) => Promise<void>;
-  sendTestNotification: (title: string, message: string) => Promise<void>;
+  sendTestNotification: (title: string, message: string) => Promise<'queued' | 'sent'>;
+  registerPushNotifications: () => Promise<void>;
 }
 
 function normaliseNotification(payload: NotificationResponse): NotificationItem {
@@ -206,10 +212,35 @@ export function useNotificationCenter(): UseNotificationCenterResult {
 
   const sendTestNotification = useCallback(
     async (title: string, message: string) => {
-      if (!isAuthenticated) return;
+      if (!isAuthenticated) return 'sent';
+      const payload = {
+        title,
+        message,
+        category: 'test',
+      };
+
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        if (!accessToken) {
+          throw new Error('ไม่สามารถบันทึกคำขอในโหมดออฟไลน์');
+        }
+        await queueBackgroundRequest({
+          url: `${API_URL}/api/v1/notifications/dispatch-test`,
+          options: {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${accessToken}`,
+            },
+            body: JSON.stringify(payload),
+          },
+        });
+        await registerBackgroundSync();
+        return 'queued';
+      }
+
       const response = await authenticatedFetch(`${API_URL}/api/v1/notifications/dispatch-test`, {
         method: 'POST',
-        body: JSON.stringify({ title, message, category: 'test' }),
+        body: JSON.stringify(payload),
       });
       if (!response.ok) {
         throw new Error('ไม่สามารถส่งข้อความทดสอบ');
@@ -218,9 +249,31 @@ export function useNotificationCenter(): UseNotificationCenterResult {
       const created = normaliseNotification(data);
       setNotifications((items) => [created, ...items.filter((item) => item.id !== created.id)]);
       setUnreadCount((count) => count + 1);
+      return 'sent';
     },
-    [authenticatedFetch, isAuthenticated]
+    [accessToken, authenticatedFetch, isAuthenticated]
   );
+
+  const registerPushNotifications = useCallback(async () => {
+    if (!isAuthenticated) return;
+    const vapidKey = process.env.NEXT_PUBLIC_WEB_PUSH_PUBLIC_KEY;
+    const payload = await subscribeUserToPush(vapidKey);
+    if (!payload) {
+      throw new Error('อุปกรณ์นี้ไม่รองรับการแจ้งเตือนแบบพุช');
+    }
+
+    const response = await authenticatedFetch(`${API_URL}/api/v1/notifications/push-subscriptions`, {
+      method: 'POST',
+      body: JSON.stringify({
+        endpoint: payload.endpoint,
+        subscription: payload.subscription.toJSON(),
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('ไม่สามารถลงทะเบียนการแจ้งเตือนแบบพุช');
+    }
+  }, [authenticatedFetch, isAuthenticated]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -302,6 +355,7 @@ export function useNotificationCenter(): UseNotificationCenterResult {
     markAllRead,
     updatePreferences,
     sendTestNotification,
+    registerPushNotifications,
   };
 }
 
