@@ -10,6 +10,7 @@ from app.core.config import settings
 from app.core.logging import setup_logging
 from app.api.api_v1.api import api_router
 from app.db import async_session_factory
+from app.middleware import AuditLogMiddleware, MaintenanceModeMiddleware
 from app.models import User
 from app.services.notification import notification_broadcaster
 from app.utils import InvalidTokenError, decode_token
@@ -40,12 +41,35 @@ if settings.ALLOWED_ORIGINS:
 # Add trusted host middleware for production
 if not settings.DEBUG:
     app.add_middleware(
-        TrustedHostMiddleware,
-        allowed_hosts=settings.ALLOWED_HOSTS or ["*"]
+        TrustedHostMiddleware, allowed_hosts=settings.ALLOWED_HOSTS or ["*"]
     )
 
 # Include API router
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
+# Maintenance mode and audit logging middleware
+maintenance_exempt_paths = (
+    f"{settings.API_V1_STR}/system",
+    f"{settings.API_V1_STR}/health",
+    "/health",
+    "/docs",
+    "/openapi",
+)
+
+audit_ignored_paths = (
+    "/docs",
+    "/openapi",
+    "/static",
+)
+
+app.add_middleware(
+    MaintenanceModeMiddleware,
+    exempt_path_prefixes=maintenance_exempt_paths,
+)
+app.add_middleware(
+    AuditLogMiddleware,
+    ignored_path_prefixes=audit_ignored_paths,
+)
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="uploads"), name="static")
@@ -57,7 +81,7 @@ async def root():
     return {
         "message": "Office Vehicle Booking System API",
         "version": "1.0.0",
-        "status": "running"
+        "status": "running",
     }
 
 

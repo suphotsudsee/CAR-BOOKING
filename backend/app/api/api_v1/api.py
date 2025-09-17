@@ -14,6 +14,7 @@ from app.api.api_v1.endpoints import (
     job_runs,
     notifications,
     reports,
+    system,
     uploads,
     users,
     vehicles,
@@ -31,12 +32,11 @@ api_router.include_router(bookings.router, prefix="/bookings", tags=["bookings"]
 api_router.include_router(
     assignments.router, prefix="/assignments", tags=["assignments"]
 )
-api_router.include_router(
-    calendar.router, prefix="/calendar", tags=["calendar"]
-)
+api_router.include_router(calendar.router, prefix="/calendar", tags=["calendar"])
 api_router.include_router(job_runs.router, prefix="/job-runs", tags=["job-runs"])
 api_router.include_router(
     notifications.router, prefix="/notifications", tags=["notifications"]
 )
 api_router.include_router(uploads.router, prefix="/uploads", tags=["uploads"])
 api_router.include_router(reports.router, prefix="/reports", tags=["reports"])
+api_router.include_router(system.router, prefix="/system", tags=["system-admin"])
