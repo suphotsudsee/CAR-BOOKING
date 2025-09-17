@@ -72,6 +72,18 @@ from .notification import (
     NotificationPreferenceUpdate,
     NotificationRead,
 )
+from .report import (
+    BookingPatternReport,
+    CostOptimisationReport,
+    CustomReportDriverOption,
+    CustomReportOptionsRead,
+    CustomReportSummaryRead,
+    DepartmentUsageReport,
+    DriverPerformanceReport,
+    PredictiveMaintenanceReport,
+    ReportOverviewResponse,
+    VehicleUtilisationReport,
+)
 from .user import (
     UserCreate,
     UserPasswordChange,
@@ -156,6 +168,16 @@ __all__ = [
     "NotificationPreferenceRead",
     "NotificationPreferenceUpdate",
     "NotificationRead",
+    "BookingPatternReport",
+    "CostOptimisationReport",
+    "CustomReportDriverOption",
+    "CustomReportOptionsRead",
+    "CustomReportSummaryRead",
+    "DepartmentUsageReport",
+    "DriverPerformanceReport",
+    "PredictiveMaintenanceReport",
+    "ReportOverviewResponse",
+    "VehicleUtilisationReport",
     "SignedUrlResponse",
     "VehicleImageUploadResponse",
 ]
