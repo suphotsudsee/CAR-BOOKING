@@ -1,5 +1,6 @@
 "use client";
 
+import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 
 import { NotificationCenter } from '../components/notifications/NotificationCenter';
@@ -31,8 +32,12 @@ export default function HomePage() {
               </p>
 
               <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                <button className="btn-primary py-3">เข้าสู่ระบบ</button>
-                <button className="btn-secondary py-3">ดูคู่มือการใช้งาน</button>
+                <Link href="/login" className="btn-primary py-3 text-center">
+                  เข้าสู่ระบบ
+                </Link>
+                <Link href="/register" className="btn-secondary py-3 text-center">
+                  ลงทะเบียนใช้งาน
+                </Link>
               </div>
             </div>
 
