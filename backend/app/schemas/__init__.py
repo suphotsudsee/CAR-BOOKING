@@ -38,6 +38,8 @@ from .calendar import (
     CalendarEventSource,
     CalendarEventUpdate,
     CalendarEventView,
+    CalendarRealtimeAction,
+    CalendarRealtimeEvent,
     CalendarResourceView,
 )
 from .driver import (
@@ -115,6 +117,8 @@ __all__ = [
     "CalendarEventSource",
     "CalendarEventUpdate",
     "CalendarEventView",
+    "CalendarRealtimeAction",
+    "CalendarRealtimeEvent",
     "CalendarResourceView",
     "ApprovalActionRequest",
     "ApprovalNotificationRead",
