@@ -57,8 +57,14 @@ from .calendar import (
     build_resource_calendar_view,
     create_calendar_event,
     delete_calendar_event,
+    export_calendar_to_ical,
+    generate_calendar_pdf,
+    generate_calendar_print_view,
     get_calendar_event_by_id,
     list_calendar_events,
+    publish_calendar_update,
+    subscribe_to_calendar_updates,
+    unsubscribe_from_calendar_updates,
     update_calendar_event,
 )
 from .user import (
@@ -154,6 +160,12 @@ __all__ = [
     "create_calendar_event",
     "delete_calendar_event",
     "get_calendar_event_by_id",
+    "export_calendar_to_ical",
+    "generate_calendar_pdf",
+    "generate_calendar_print_view",
     "list_calendar_events",
+    "publish_calendar_update",
+    "subscribe_to_calendar_updates",
+    "unsubscribe_from_calendar_updates",
     "update_calendar_event",
 ]

@@ -19,6 +19,14 @@ class CalendarEventSource(str, Enum):
     MANUAL = "manual"
 
 
+class CalendarRealtimeAction(str, Enum):
+    """Action performed on a manual calendar event."""
+
+    CREATED = "created"
+    UPDATED = "updated"
+    DELETED = "deleted"
+
+
 class CalendarEventBase(BaseModel):
     """Shared fields for manual calendar events."""
 
@@ -110,5 +118,15 @@ class CalendarResourceView(BaseModel):
     resource_name: str
     events: list[CalendarEventView]
     conflicts: list[CalendarConflictView]
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CalendarRealtimeEvent(BaseModel):
+    """Payload describing a manual calendar event update."""
+
+    action: CalendarRealtimeAction
+    event: Optional[CalendarEventView] = None
+    calendar_event_id: Optional[int] = None
 
     model_config = ConfigDict(from_attributes=True)
