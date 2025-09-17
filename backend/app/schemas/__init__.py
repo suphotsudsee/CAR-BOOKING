@@ -31,6 +31,15 @@ from .booking import (
     BookingRequestUpdate,
     BookingStatusUpdate,
 )
+from .calendar import (
+    CalendarConflictView,
+    CalendarEventCreate,
+    CalendarEventRead,
+    CalendarEventSource,
+    CalendarEventUpdate,
+    CalendarEventView,
+    CalendarResourceView,
+)
 from .driver import (
     DriverAvailabilitySchedule,
     DriverAvailabilityUpdate,
@@ -100,6 +109,13 @@ __all__ = [
     "BookingRequestRead",
     "BookingRequestUpdate",
     "BookingStatusUpdate",
+    "CalendarConflictView",
+    "CalendarEventCreate",
+    "CalendarEventRead",
+    "CalendarEventSource",
+    "CalendarEventUpdate",
+    "CalendarEventView",
+    "CalendarResourceView",
     "ApprovalActionRequest",
     "ApprovalNotificationRead",
     "ApprovalRead",

@@ -53,6 +53,14 @@ from .job_run import (
     record_job_check_out,
     review_job_expenses,
 )
+from .calendar import (
+    build_resource_calendar_view,
+    create_calendar_event,
+    delete_calendar_event,
+    get_calendar_event_by_id,
+    list_calendar_events,
+    update_calendar_event,
+)
 from .user import (
     change_user_password,
     create_user,
@@ -142,4 +150,10 @@ __all__ = [
     "record_job_check_out",
     "ReceiptValidationError",
     "review_job_expenses",
+    "build_resource_calendar_view",
+    "create_calendar_event",
+    "delete_calendar_event",
+    "get_calendar_event_by_id",
+    "list_calendar_events",
+    "update_calendar_event",
 ]
