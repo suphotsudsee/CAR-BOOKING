@@ -5,28 +5,29 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, get_storage_service
+from app.core.config import settings
 from app.db import get_async_session
 from app.models.assignment import Assignment
 from app.models.booking import BookingRequest, BookingStatus
 from app.models.user import User, UserRole
-from app.schemas import JobRunCheckIn, JobRunCheckOut, JobRunRead
+from app.schemas import JobRunCheckIn, JobRunCheckOut, JobRunImageGallery, JobRunRead
 from app.services import (
+    build_job_run_image_gallery,
     get_assignment_by_booking_id,
     get_booking_request_by_id,
     get_job_run_by_booking_id,
     record_job_check_in,
     record_job_check_out,
 )
+from app.services.storage import S3StorageService
 
 router = APIRouter()
 
 _MANAGEMENT_ROLES = (UserRole.MANAGER, UserRole.FLEET_ADMIN)
 
 
-async def _load_booking(
-    session: AsyncSession, booking_id: int
-) -> BookingRequest:
+async def _load_booking(session: AsyncSession, booking_id: int) -> BookingRequest:
     booking = await get_booking_request_by_id(session, booking_id)
     if booking is None:
         raise HTTPException(
@@ -185,4 +186,38 @@ async def check_out_job(
     return job_run
 
 
-__all__ = ["check_in_job", "check_out_job", "get_job_run"]
+@router.get(
+    "/by-booking/{booking_id}/image-gallery",
+    response_model=JobRunImageGallery,
+)
+async def get_job_run_image_gallery(
+    booking_id: int,
+    session: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user),
+    storage: S3StorageService = Depends(get_storage_service),
+) -> JobRunImageGallery:
+    """Return presigned URLs for the job's before/after image sets."""
+
+    booking = await _load_booking(session, booking_id)
+    await _ensure_can_view_job(session, booking=booking, user=current_user)
+
+    job_run = await get_job_run_by_booking_id(session, booking_id)
+    if job_run is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Job run not found",
+        )
+
+    return await build_job_run_image_gallery(
+        job_run,
+        storage,
+        expires_in=settings.S3_URL_EXPIRATION,
+    )
+
+
+__all__ = [
+    "check_in_job",
+    "check_out_job",
+    "get_job_run",
+    "get_job_run_image_gallery",
+]

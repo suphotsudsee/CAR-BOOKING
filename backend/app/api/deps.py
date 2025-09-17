@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from functools import lru_cache
 from typing import Sequence
 
 from fastapi import Depends, HTTPException, status
@@ -11,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_async_session
 from app.models.user import User, UserRole
+from app.services.storage import S3StorageService
 from app.utils import InvalidTokenError, decode_token
 
 _bearer_scheme = HTTPBearer(auto_error=False)
@@ -101,4 +103,15 @@ class RoleBasedAccess:
         return user
 
 
-__all__ = ["RoleBasedAccess", "get_current_user"]
+@lru_cache
+def _storage_service() -> S3StorageService:
+    return S3StorageService.from_settings()
+
+
+def get_storage_service() -> S3StorageService:
+    """Provide a singleton storage service instance."""
+
+    return _storage_service()
+
+
+__all__ = ["RoleBasedAccess", "get_current_user", "get_storage_service"]

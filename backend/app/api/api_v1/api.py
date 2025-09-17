@@ -11,6 +11,7 @@ from app.api.api_v1.endpoints import (
     drivers,
     health,
     job_runs,
+    uploads,
     users,
     vehicles,
 )
@@ -24,5 +25,8 @@ api_router.include_router(users.router, prefix="/users", tags=["users"])
 api_router.include_router(vehicles.router, prefix="/vehicles", tags=["vehicles"])
 api_router.include_router(drivers.router, prefix="/drivers", tags=["drivers"])
 api_router.include_router(bookings.router, prefix="/bookings", tags=["bookings"])
-api_router.include_router(assignments.router, prefix="/assignments", tags=["assignments"])
+api_router.include_router(
+    assignments.router, prefix="/assignments", tags=["assignments"]
+)
 api_router.include_router(job_runs.router, prefix="/job-runs", tags=["job-runs"])
+api_router.include_router(uploads.router, prefix="/uploads", tags=["uploads"])

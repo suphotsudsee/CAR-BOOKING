@@ -31,6 +31,7 @@ emails==0.6
 # File handling
 python-magic==0.4.27
 pillow==10.1.0
+boto3==1.34.36
 
 # Utilities
 python-dateutil==2.8.2
@@ -44,6 +45,7 @@ black==23.11.0
 isort==5.12.0
 flake8==6.1.0
 mypy==1.7.1
+moto[s3]==4.2.11
 
 # Monitoring and logging
 structlog==23.2.0

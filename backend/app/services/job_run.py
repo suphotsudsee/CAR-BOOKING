@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Iterable, Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,7 +11,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.assignment import Assignment
 from app.models.booking import BookingRequest, BookingStatus
 from app.models.job_run import JobRun, JobRunStatus
+from app.schemas.image import GalleryImage, JobRunImageGallery
 from app.schemas.job_run import JobRunCheckIn, JobRunCheckOut
+from app.services.storage import ObjectNotFoundError, S3StorageService
 
 
 async def get_job_run_by_booking_id(
@@ -31,9 +33,7 @@ async def _load_assignment(
     if assignment is not None:
         return assignment
 
-    stmt = select(Assignment).where(
-        Assignment.booking_request_id == booking_request.id
-    )
+    stmt = select(Assignment).where(Assignment.booking_request_id == booking_request.id)
     result = await session.execute(stmt)
     assignment = result.scalar_one_or_none()
     if assignment is None:
@@ -151,8 +151,72 @@ async def record_job_check_out(
     return job_run
 
 
+def _clean_image_keys(values: Optional[Iterable[str]]) -> list[str]:
+    keys: list[str] = []
+    if not values:
+        return keys
+    for value in values:
+        if not value:
+            continue
+        stripped = value.strip()
+        if stripped:
+            keys.append(stripped)
+    return keys
+
+
+async def _describe_image(
+    storage: S3StorageService, key: str, *, expires_in: Optional[int]
+) -> Optional[GalleryImage]:
+    if "://" in key:
+        return GalleryImage(
+            key=key,
+            url=key,
+            content_type="image/*",
+        )
+    try:
+        descriptor = await storage.describe_image(key, expires_in=expires_in)
+    except ObjectNotFoundError:
+        return None
+
+    return GalleryImage(
+        key=descriptor.key,
+        url=descriptor.url,
+        content_type=descriptor.content_type,
+        width=descriptor.width,
+        height=descriptor.height,
+        preview_key=descriptor.preview_key,
+        preview_url=descriptor.preview_url,
+        preview_width=descriptor.preview_width,
+        preview_height=descriptor.preview_height,
+    )
+
+
+async def build_job_run_image_gallery(
+    job_run: JobRun,
+    storage: S3StorageService,
+    *,
+    expires_in: Optional[int] = None,
+) -> JobRunImageGallery:
+    """Return presigned URLs grouped by check-in/check-out images."""
+
+    gallery_checkin: list[GalleryImage] = []
+    for key in _clean_image_keys(job_run.checkin_images):
+        described = await _describe_image(storage, key, expires_in=expires_in)
+        if described is not None:
+            gallery_checkin.append(described)
+
+    gallery_checkout: list[GalleryImage] = []
+    for key in _clean_image_keys(job_run.checkout_images):
+        described = await _describe_image(storage, key, expires_in=expires_in)
+        if described is not None:
+            gallery_checkout.append(described)
+
+    return JobRunImageGallery(checkin=gallery_checkin, checkout=gallery_checkout)
+
+
 __all__ = [
     "get_job_run_by_booking_id",
     "record_job_check_in",
     "record_job_check_out",
+    "build_job_run_image_gallery",
 ]

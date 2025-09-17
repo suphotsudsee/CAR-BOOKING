@@ -1,14 +1,17 @@
 from __future__ import annotations
 
+import io
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
 import pytest
+from PIL import Image
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.datastructures import UploadFile
 
 from app.models.booking import BookingRequest, BookingStatus
 from app.models.driver import DriverStatus
-from app.models.job_run import JobRunStatus
+from app.models.job_run import JobRun, JobRunStatus
 from app.models.user import User, UserRole
 from app.models.vehicle import FuelType, VehicleStatus, VehicleType
 from app.schemas import (
@@ -21,6 +24,7 @@ from app.schemas import (
     VehicleCreate,
 )
 from app.services import (
+    build_job_run_image_gallery,
     create_assignment,
     create_booking_request,
     create_driver,
@@ -31,9 +35,14 @@ from app.services import (
     record_job_check_out,
     transition_booking_status,
 )
+from app.services.image import process_vehicle_image_upload, store_vehicle_image
+from app.services.storage import S3StorageService
+from tests.s3_stub import InMemoryS3Client
 
 
-def _future_window(hours_from_now: int = 1, duration_hours: int = 2) -> tuple[datetime, datetime]:
+def _future_window(
+    hours_from_now: int = 1, duration_hours: int = 2
+) -> tuple[datetime, datetime]:
     start = datetime.now(timezone.utc) + timedelta(hours=hours_from_now)
     end = start + timedelta(hours=duration_hours)
     return start, end
@@ -265,3 +274,53 @@ async def test_duplicate_check_in_not_allowed(
                 checkin_mileage=15010,
             ),
         )
+
+
+@pytest.mark.asyncio
+async def test_build_job_run_image_gallery_returns_signed_urls() -> None:
+    image = Image.new("RGB", (800, 600), color="blue")
+    buffer = io.BytesIO()
+    image.save(buffer, format="JPEG")
+    buffer.seek(0)
+
+    upload = UploadFile(filename="before.jpg", file=io.BytesIO(buffer.getvalue()))
+
+    processed = await process_vehicle_image_upload(
+        upload,
+        max_size=2 * 1024 * 1024,
+        allowed_extensions=["jpg", "jpeg"],
+        max_dimension=800,
+        preview_dimension=200,
+    )
+
+    client = InMemoryS3Client()
+    storage = S3StorageService(
+        client=client,
+        bucket="gallery-bucket",
+        base_prefix="uploads",
+        default_expiration=180,
+    )
+
+    stored = await store_vehicle_image(
+        processed,
+        storage,
+        prefix="vehicle-images",
+        expires_in=90,
+    )
+
+    job_run = JobRun(
+        booking_request_id=1,
+        checkin_images=[stored.key, "https://cdn.example.com/external.jpg"],
+        checkout_images=["missing-key"],
+    )
+
+    gallery = await build_job_run_image_gallery(
+        job_run,
+        storage,
+        expires_in=60,
+    )
+
+    assert len(gallery.checkin) == 2
+    assert gallery.checkin[0].preview_url is not None
+    assert str(gallery.checkin[1].url) == "https://cdn.example.com/external.jpg"
+    assert gallery.checkout == []

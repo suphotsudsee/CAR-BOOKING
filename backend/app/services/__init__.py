@@ -1,5 +1,52 @@
 """Domain service layer exports."""
 
+from .approval import (
+    create_approval_delegation,
+    get_pending_booking_approval_notifications,
+    list_booking_approvals,
+    record_booking_approval,
+)
+from .assignment import (
+    create_assignment,
+    get_assignment_by_booking_id,
+    get_assignment_by_id,
+    suggest_assignment_options,
+    update_assignment,
+)
+from .booking import (
+    create_booking_request,
+    delete_booking_request,
+    get_booking_request_by_id,
+    get_conflicting_booking_requests,
+    has_conflicting_booking_requests,
+    list_booking_requests,
+    suggest_alternative_bookings,
+    transition_booking_status,
+    update_booking_request,
+)
+from .driver import (
+    create_driver,
+    delete_driver,
+    ensure_driver_available,
+    get_driver_by_employee_code,
+    get_driver_by_id,
+    get_driver_by_license_number,
+    get_driver_by_user_id,
+    get_driver_conflicting_assignments,
+    get_expiring_driver_licenses,
+    is_driver_available,
+    is_driver_available_by_schedule,
+    list_drivers,
+    update_driver,
+    update_driver_availability,
+    update_driver_status,
+)
+from .job_run import (
+    build_job_run_image_gallery,
+    get_job_run_by_booking_id,
+    record_job_check_in,
+    record_job_check_out,
+)
 from .user import (
     change_user_password,
     create_user,
@@ -24,52 +71,6 @@ from .vehicle import (
     store_vehicle_document,
     update_vehicle,
     update_vehicle_status,
-)
-from .booking import (
-    create_booking_request,
-    delete_booking_request,
-    get_booking_request_by_id,
-    get_conflicting_booking_requests,
-    has_conflicting_booking_requests,
-    list_booking_requests,
-    suggest_alternative_bookings,
-    transition_booking_status,
-    update_booking_request,
-)
-from .approval import (
-    create_approval_delegation,
-    get_pending_booking_approval_notifications,
-    list_booking_approvals,
-    record_booking_approval,
-)
-from .driver import (
-    create_driver,
-    delete_driver,
-    ensure_driver_available,
-    get_driver_conflicting_assignments,
-    get_driver_by_employee_code,
-    get_driver_by_id,
-    get_driver_by_license_number,
-    get_driver_by_user_id,
-    get_expiring_driver_licenses,
-    is_driver_available,
-    is_driver_available_by_schedule,
-    list_drivers,
-    update_driver,
-    update_driver_availability,
-    update_driver_status,
-)
-from .assignment import (
-    create_assignment,
-    get_assignment_by_booking_id,
-    get_assignment_by_id,
-    suggest_assignment_options,
-    update_assignment,
-)
-from .job_run import (
-    get_job_run_by_booking_id,
-    record_job_check_in,
-    record_job_check_out,
 )
 
 __all__ = [
@@ -127,6 +128,7 @@ __all__ = [
     "get_assignment_by_id",
     "suggest_assignment_options",
     "update_assignment",
+    "build_job_run_image_gallery",
     "get_job_run_by_booking_id",
     "record_job_check_in",
     "record_job_check_out",
