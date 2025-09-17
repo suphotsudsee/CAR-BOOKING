@@ -45,6 +45,17 @@ from .approval import (
     BookingApprovalResponse,
     PendingApprovalNotificationRead,
 )
+from .assignment import (
+    AssignmentCreate,
+    AssignmentDriverSuggestion,
+    AssignmentDriverSuggestionData,
+    AssignmentRead,
+    AssignmentSuggestionData,
+    AssignmentSuggestionRead,
+    AssignmentUpdate,
+    AssignmentVehicleSuggestion,
+    AssignmentVehicleSuggestionData,
+)
 
 __all__ = [
     "LoginRequest",
@@ -80,4 +91,13 @@ __all__ = [
     "ApprovalRead",
     "BookingApprovalResponse",
     "PendingApprovalNotificationRead",
+    "AssignmentCreate",
+    "AssignmentDriverSuggestion",
+    "AssignmentDriverSuggestionData",
+    "AssignmentRead",
+    "AssignmentSuggestionData",
+    "AssignmentSuggestionRead",
+    "AssignmentUpdate",
+    "AssignmentVehicleSuggestion",
+    "AssignmentVehicleSuggestionData",
 ]
