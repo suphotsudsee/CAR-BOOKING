@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import RoleBasedAccess, get_current_user
@@ -169,18 +169,24 @@ async def update_user_endpoint(
         ) from exc
 
 
-@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{user_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
 async def delete_user_endpoint(
     user_id: int,
     session: AsyncSession = Depends(get_async_session),
     _: User = Depends(_manage_users),
-) -> None:
+) -> Response:
     """Delete the specified user from the system."""
     user = await get_user_by_id(session, user_id)
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
     await delete_user_service(session, user=user)
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/{user_id}/role", response_model=UserRead)

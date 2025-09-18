@@ -4,7 +4,16 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    HTTPException,
+    Query,
+    Response,
+    UploadFile,
+    status,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import RoleBasedAccess
@@ -160,18 +169,24 @@ async def update_vehicle_status_endpoint(
     )
 
 
-@router.delete("/{vehicle_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{vehicle_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
 async def delete_vehicle_endpoint(
     vehicle_id: int,
     session: AsyncSession = Depends(get_async_session),
     _: User = Depends(_manage_vehicles),
-) -> None:
+) -> Response:
     """Delete a vehicle from the fleet."""
     vehicle = await get_vehicle_by_id(session, vehicle_id)
     if vehicle is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found")
 
     await delete_vehicle_service(session, vehicle=vehicle)
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post(

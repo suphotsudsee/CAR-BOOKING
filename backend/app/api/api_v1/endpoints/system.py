@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import RoleBasedAccess
@@ -120,12 +120,16 @@ async def create_holiday_endpoint(
     return HolidayRead.from_orm(holiday)
 
 
-@router.delete("/holidays/{holiday_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/holidays/{holiday_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
 async def delete_holiday_endpoint(
     holiday_id: int,
     session: AsyncSession = Depends(get_async_session),
     _: User = Depends(_admin_only),
-) -> None:
+) -> Response:
     """Delete a configured holiday."""
 
     removed = await remove_holiday(session, holiday_id)
@@ -133,6 +137,8 @@ async def delete_holiday_endpoint(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Holiday not found"
         )
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/working-hours", response_model=list[WorkingHourRead])
@@ -170,12 +176,16 @@ async def upsert_working_hours_endpoint(
     return WorkingHourRead.from_orm(record)
 
 
-@router.delete("/working-hours/{day_of_week}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/working-hours/{day_of_week}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
 async def delete_working_hours_endpoint(
     day_of_week: str,
     session: AsyncSession = Depends(get_async_session),
     _: User = Depends(_admin_only),
-) -> None:
+) -> Response:
     """Remove configured working hours for the specified day."""
 
     removed = await remove_working_hour(session, day_of_week)
@@ -183,6 +193,8 @@ async def delete_working_hours_endpoint(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Working hours not found"
         )
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/audit", response_model=AuditLogSearchResponse)
