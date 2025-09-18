@@ -62,8 +62,9 @@ async def get_resource_calendar(
     resource_type: CalendarResourceType,
     start: datetime = Query(..., description="Start of the calendar window"),
     end: datetime = Query(..., description="End of the calendar window"),
-    resource_ids: Annotated[list[int] | None, Query(None, description="Filter by resource ids")]
-    = None,
+    resource_ids: Annotated[
+        list[int] | None, Query(description="Filter by resource ids")
+    ] = None,
     session: AsyncSession = Depends(get_async_session),
     _: User = Depends(_manage_calendar),
 ) -> list[CalendarResourceView]:
@@ -89,8 +90,9 @@ async def export_resource_calendar_ical(
     resource_type: CalendarResourceType,
     start: datetime = Query(..., description="Start of the calendar window"),
     end: datetime = Query(..., description="End of the calendar window"),
-    resource_ids: Annotated[list[int] | None, Query(None, description="Filter by resource ids")]
-    = None,
+    resource_ids: Annotated[
+        list[int] | None, Query(description="Filter by resource ids")
+    ] = None,
     session: AsyncSession = Depends(get_async_session),
     _: User = Depends(_manage_calendar),
 ) -> PlainTextResponse:
@@ -124,8 +126,9 @@ async def export_resource_calendar_print(
     resource_type: CalendarResourceType,
     start: datetime = Query(..., description="Start of the calendar window"),
     end: datetime = Query(..., description="End of the calendar window"),
-    resource_ids: Annotated[list[int] | None, Query(None, description="Filter by resource ids")]
-    = None,
+    resource_ids: Annotated[
+        list[int] | None, Query(description="Filter by resource ids")
+    ] = None,
     session: AsyncSession = Depends(get_async_session),
     _: User = Depends(_manage_calendar),
 ) -> HTMLResponse:
@@ -153,8 +156,9 @@ async def export_resource_calendar_pdf(
     resource_type: CalendarResourceType,
     start: datetime = Query(..., description="Start of the calendar window"),
     end: datetime = Query(..., description="End of the calendar window"),
-    resource_ids: Annotated[list[int] | None, Query(None, description="Filter by resource ids")]
-    = None,
+    resource_ids: Annotated[
+        list[int] | None, Query(description="Filter by resource ids")
+    ] = None,
     session: AsyncSession = Depends(get_async_session),
     _: User = Depends(_manage_calendar),
 ) -> Response:
@@ -240,12 +244,16 @@ async def update_calendar_entry(
         ) from exc
 
 
-@router.delete("/events/{event_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/events/{event_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
 async def delete_calendar_entry(
     event_id: int,
     session: AsyncSession = Depends(get_async_session),
     _: User = Depends(_manage_calendar),
-) -> None:
+) -> Response:
     """Delete a manual calendar event."""
 
     event = await get_calendar_event_by_id(session, event_id)
@@ -256,6 +264,8 @@ async def delete_calendar_entry(
         )
 
     await delete_calendar_event(session, event)
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 __all__ = [

@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Optional
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import RoleBasedAccess, get_current_user
@@ -225,12 +225,16 @@ async def update_booking(
         ) from exc
 
 
-@router.delete("/{booking_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{booking_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
 async def delete_booking(
     booking_id: int,
     session: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user),
-) -> None:
+) -> Response:
     """Delete a booking request."""
 
     booking = await get_booking_request_by_id(session, booking_id)
@@ -246,6 +250,8 @@ async def delete_booking(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         ) from exc
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.patch("/{booking_id}/status", response_model=BookingRequestRead)

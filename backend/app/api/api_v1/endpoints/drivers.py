@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import RoleBasedAccess
@@ -151,12 +151,16 @@ async def update_driver_availability_endpoint(
     )
 
 
-@router.delete("/{driver_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{driver_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
 async def delete_driver_endpoint(
     driver_id: int,
     session: AsyncSession = Depends(get_async_session),
     _: User = Depends(_manage_drivers),
-) -> None:
+) -> Response:
     """Delete a driver from the system."""
 
     driver = await get_driver_by_id(session, driver_id)
@@ -164,6 +168,8 @@ async def delete_driver_endpoint(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Driver not found")
 
     await delete_driver_service(session, driver=driver)
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get(
