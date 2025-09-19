@@ -58,7 +58,7 @@ def upgrade() -> None:
             sa.DateTime(timezone=True),
             nullable=False,
             server_default=sa.text("CURRENT_TIMESTAMP"),
-            mysql_on_update=sa.text("CURRENT_TIMESTAMP"),
+            server_onupdate=sa.text("CURRENT_TIMESTAMP"),
         ),
     )
 
