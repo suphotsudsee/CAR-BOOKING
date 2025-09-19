@@ -1,5 +1,7 @@
 """Office Vehicle Booking System - FastAPI Application"""
 
+from pathlib import Path
+
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
@@ -89,7 +91,10 @@ app.add_middleware(
 )
 
 # Mount static files
-app.mount("/static", StaticFiles(directory="uploads"), name="static")
+uploads_dir = Path(settings.UPLOAD_DIR)
+uploads_dir.mkdir(parents=True, exist_ok=True)
+
+app.mount("/static", StaticFiles(directory=uploads_dir), name="static")
 
 
 @app.get("/")
