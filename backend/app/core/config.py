@@ -110,6 +110,19 @@ class Settings(BaseSettings):
             return [item.strip() for item in value.split(",") if item.strip()]
         return value
 
+    @field_validator("ALLOWED_ORIGINS", mode="before")
+    @classmethod
+    def _parse_allowed_origins(cls, value: Optional[List[str] | str]) -> Optional[List[str]]:
+        """Allow comma separated CORS origins in environment configuration."""
+        if value is None or isinstance(value, list):
+            return value
+        if isinstance(value, str):
+            value = value.strip()
+            if not value:
+                return []
+            return [item.strip() for item in value.split(",") if item.strip()]
+        return value
+
     model_config = SettingsConfigDict(
         env_file=".env",
         case_sensitive=True,
