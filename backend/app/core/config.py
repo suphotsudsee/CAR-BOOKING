@@ -4,7 +4,7 @@ Application configuration settings
 
 from typing import List, Optional
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -77,6 +77,19 @@ class Settings(BaseSettings):
     # Pagination
     DEFAULT_PAGE_SIZE: int = Field(default=20)
     MAX_PAGE_SIZE: int = Field(default=100)
+
+    @field_validator("ALLOWED_EXTENSIONS", mode="before")
+    @classmethod
+    def _parse_allowed_extensions(cls, value: Optional[List[str] | str]) -> Optional[List[str]]:
+        """Allow comma separated values in environment configuration."""
+        if value is None or isinstance(value, list):
+            return value
+        if isinstance(value, str):
+            value = value.strip()
+            if not value:
+                return []
+            return [item.strip() for item in value.split(",") if item.strip()]
+        return value
 
     class Config:
         env_file = ".env"
