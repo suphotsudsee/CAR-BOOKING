@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     # Application
     ENVIRONMENT: str = Field(default="development")
     DEBUG: bool = Field(default=True)
+    ENABLE_API_DOCS: bool = Field(default=True)
     SECRET_KEY: str = Field(default="change-me-in-production")
     API_V1_STR: str = Field(default="/api/v1")
 

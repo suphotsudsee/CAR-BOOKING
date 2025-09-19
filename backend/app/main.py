@@ -19,13 +19,19 @@ from app.utils import InvalidTokenError, decode_token
 setup_logging()
 
 # Create FastAPI application
+openapi_url = (
+    f"{settings.API_V1_STR}/openapi.json" if settings.ENABLE_API_DOCS else None
+)
+docs_url = "/docs" if settings.ENABLE_API_DOCS else None
+redoc_url = "/redoc" if settings.ENABLE_API_DOCS else None
+
 app = FastAPI(
     title="Office Vehicle Booking System API",
     description="ระบบจองรถสำนักงาน - Vehicle booking and management system API",
     version="1.0.0",
-    openapi_url=f"{settings.API_V1_STR}/openapi.json" if settings.DEBUG else None,
-    docs_url="/docs" if settings.DEBUG else None,
-    redoc_url="/redoc" if settings.DEBUG else None,
+    openapi_url=openapi_url,
+    docs_url=docs_url,
+    redoc_url=redoc_url,
 )
 
 # Set up CORS
@@ -48,18 +54,29 @@ if not settings.DEBUG:
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
 # Maintenance mode and audit logging middleware
-maintenance_exempt_paths = (
-    f"{settings.API_V1_STR}/system",
-    f"{settings.API_V1_STR}/health",
-    "/health",
-    "/docs",
-    "/openapi",
+maintenance_exempt_paths = tuple(
+    filter(
+        None,
+        (
+            f"{settings.API_V1_STR}/system",
+            f"{settings.API_V1_STR}/health",
+            "/health",
+            docs_url,
+            openapi_url,
+        ),
+    )
 )
 
-audit_ignored_paths = (
-    "/docs",
-    "/openapi",
-    "/static",
+audit_ignored_paths = tuple(
+    filter(
+        None,
+        (
+            docs_url,
+            redoc_url,
+            openapi_url,
+            "/static",
+        ),
+    )
 )
 
 app.add_middleware(
