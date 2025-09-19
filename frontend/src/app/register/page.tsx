@@ -2,10 +2,14 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AuthLayout } from '@/components/auth/AuthLayout';
+import { useAuth } from '@/context/AuthContext';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 
 const registrationSchema = z
   .object({
@@ -30,15 +34,44 @@ const registrationSchema = z
 
 type RegistrationFormValues = z.infer<typeof registrationSchema>;
 
+type ApiUserRole = 'requester' | 'driver' | 'fleet_admin';
+
 const roleDescriptions: Record<RegistrationFormValues['role'], string> = {
   employee: 'ขอจองรถ ติดตามสถานะ และจัดการการเดินทางของทีมได้สะดวก',
   driver: 'รับมอบหมายงานขับรถ ดูตารางเดินรถ และรายงานสถานะได้ทันที',
   admin: 'กำหนดสิทธิ์ผู้ใช้งาน จัดการรถ และตรวจสอบรายงานทั้งหมดในระบบ',
 };
 
+const roleMap: Record<RegistrationFormValues['role'], ApiUserRole> = {
+  employee: 'requester',
+  driver: 'driver',
+  admin: 'fleet_admin',
+};
+
+function deriveUsername(fullName: string, email: string): string {
+  const [localPart] = email.split('@');
+  const emailCandidate = (localPart ?? '').replace(/[^a-zA-Z0-9._-]/g, '');
+  const nameCandidate = fullName
+    .toLowerCase()
+    .replace(/\s+/g, '.')
+    .replace(/[^a-z0-9._-]/g, '');
+
+  let candidate = emailCandidate || nameCandidate || `user${Date.now()}`;
+  candidate = candidate.slice(0, 50);
+
+  if (candidate.length < 3) {
+    candidate = candidate.padEnd(3, '0');
+  }
+
+  return candidate;
+}
+
 export default function RegisterPage() {
+  const router = useRouter();
+  const { login } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [submissionMessage, setSubmissionMessage] = useState<string | null>(null);
+  const [messageVariant, setMessageVariant] = useState<'success' | 'error'>('success');
 
   const {
     register,
@@ -61,14 +94,43 @@ export default function RegisterPage() {
 
   const onSubmit = async (values: RegistrationFormValues) => {
     setIsSubmitting(true);
-    setSuccessMessage(null);
+    setSubmissionMessage(null);
 
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    const username = deriveUsername(values.fullName, values.email);
+    const role = roleMap[values.role];
 
-    setSuccessMessage(
-      `บัญชีของ ${values.fullName} ถูกสร้างเรียบร้อยแล้ว ระบบได้ส่งอีเมลยืนยันไปยัง ${values.email} และกำหนดบทบาทเป็น ${roleDescriptions[values.role]}`,
-    );
-    setIsSubmitting(false);
+    try {
+      const response = await fetch(`${API_URL}/api/v1/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username,
+          email: values.email,
+          full_name: values.fullName,
+          password: values.password,
+          role,
+          department: null,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        const message = typeof data?.detail === 'string' ? data.detail : 'ไม่สามารถสร้างบัญชีได้';
+        throw new Error(message);
+      }
+
+      await login({ username, password: values.password, remember: true });
+
+      setMessageVariant('success');
+      setSubmissionMessage('สร้างบัญชีสำเร็จ กำลังพาคุณไปยังหน้าโปรไฟล์');
+      router.push('/profile');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'ไม่สามารถสร้างบัญชีได้';
+      setMessageVariant('error');
+      setSubmissionMessage(message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -183,7 +245,7 @@ export default function RegisterPage() {
           <ul className="mt-2 list-disc space-y-1 pl-5">
             <li>ตั้งรหัสผ่านอย่างน้อย 8 ตัวอักษร และประกอบด้วยตัวเลข ตัวพิมพ์ใหญ่ และตัวพิมพ์เล็ก</li>
             <li>ผู้ใช้งานบทบาทผู้ดูแลระบบต้องเปิดใช้งานการยืนยันตัวตนสองชั้น (2FA)</li>
-            <li>ระบบจะส่งอีเมลยืนยันเพื่อเปิดใช้งานบัญชีก่อนใช้งานจริง</li>
+            <li>บัญชีจะพร้อมใช้งานทันทีหลังจากลงทะเบียนสำเร็จ</li>
           </ul>
         </div>
 
@@ -210,8 +272,16 @@ export default function RegisterPage() {
           {isSubmitting ? 'กำลังสร้างบัญชี...' : 'ลงทะเบียน'}
         </button>
 
-        {successMessage ? (
-          <div className="rounded-lg bg-success-50 p-4 text-sm text-success-700">{successMessage}</div>
+        {submissionMessage ? (
+          <div
+            className={
+              messageVariant === 'success'
+                ? 'rounded-lg bg-success-50 p-4 text-sm text-success-700'
+                : 'rounded-lg bg-red-50 p-4 text-sm text-red-700'
+            }
+          >
+            {submissionMessage}
+          </div>
         ) : null}
       </form>
     </AuthLayout>
