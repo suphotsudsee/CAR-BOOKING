@@ -135,7 +135,7 @@ def upgrade() -> None:
             sa.DateTime(timezone=True),
             nullable=False,
             server_default=sa.text("CURRENT_TIMESTAMP"),
-            mysql_on_update=sa.text("CURRENT_TIMESTAMP"),
+            server_onupdate=sa.text("CURRENT_TIMESTAMP"),
         ),
     )
     op.create_index("ix_users_role", "users", ["role"], unique=False)
@@ -187,7 +187,7 @@ def upgrade() -> None:
             sa.DateTime(timezone=True),
             nullable=False,
             server_default=sa.text("CURRENT_TIMESTAMP"),
-            mysql_on_update=sa.text("CURRENT_TIMESTAMP"),
+            server_onupdate=sa.text("CURRENT_TIMESTAMP"),
         ),
     )
     op.create_index(
@@ -245,7 +245,7 @@ def upgrade() -> None:
             sa.DateTime(timezone=True),
             nullable=False,
             server_default=sa.text("CURRENT_TIMESTAMP"),
-            mysql_on_update=sa.text("CURRENT_TIMESTAMP"),
+            server_onupdate=sa.text("CURRENT_TIMESTAMP"),
         ),
     )
     op.create_index("ix_drivers_user_id", "drivers", ["user_id"], unique=False)
@@ -303,7 +303,7 @@ def upgrade() -> None:
             sa.DateTime(timezone=True),
             nullable=False,
             server_default=sa.text("CURRENT_TIMESTAMP"),
-            mysql_on_update=sa.text("CURRENT_TIMESTAMP"),
+            server_onupdate=sa.text("CURRENT_TIMESTAMP"),
         ),
     )
     op.create_index(
@@ -461,7 +461,7 @@ def upgrade() -> None:
             sa.DateTime(timezone=True),
             nullable=False,
             server_default=sa.text("CURRENT_TIMESTAMP"),
-            mysql_on_update=sa.text("CURRENT_TIMESTAMP"),
+            server_onupdate=sa.text("CURRENT_TIMESTAMP"),
         ),
     )
     op.create_index("ix_job_runs_status", "job_runs", ["status"], unique=False)
