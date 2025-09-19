@@ -1,22 +1,30 @@
-"""
-Application configuration settings
-"""
+"""Application configuration settings."""
 
-import json
 from typing import Any, List, Optional
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings.sources import (
+    DotEnvSettingsSource,
+    EnvSettingsSource,
+    PydanticBaseSettingsSource,
+)
 
 
-def _safe_json_loads(value: Any) -> Any:
-    """Safely decode JSON values from environment variables."""
-    if not isinstance(value, str):
-        return value
-    try:
-        return json.loads(value)
-    except json.JSONDecodeError:
-        return value
+class _SafeEnvSettingsSource(EnvSettingsSource):
+    """Environment settings source with tolerant JSON decoding."""
+
+    def decode_complex_value(self, field_name: str, field: Any, value: Any) -> Any:  # type: ignore[override]
+        if isinstance(value, str) and not value.strip():
+            return value
+        try:
+            return super().decode_complex_value(field_name, field, value)
+        except ValueError:
+            return value
+
+
+class _SafeDotEnvSettingsSource(_SafeEnvSettingsSource, DotEnvSettingsSource):
+    """DotEnv settings source that reuses the safe JSON decoding."""
 
 
 class Settings(BaseSettings):
@@ -106,9 +114,26 @@ class Settings(BaseSettings):
         env_file=".env",
         case_sensitive=True,
         env_ignore_empty=True,
-        json_loads=_safe_json_loads,
     )
 
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: EnvSettingsSource,
+        dotenv_settings: DotEnvSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        """Use safe sources that gracefully handle invalid JSON values."""
+
+        return (
+            init_settings,
+            _SafeEnvSettingsSource(settings_cls),
+            _SafeDotEnvSettingsSource(settings_cls),
+            file_secret_settings,
+        )
 
 # Create settings instance
 settings = Settings()
+
