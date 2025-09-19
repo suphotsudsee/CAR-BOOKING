@@ -2,10 +2,21 @@
 Application configuration settings
 """
 
-from typing import List, Optional
+import json
+from typing import Any, List, Optional
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def _safe_json_loads(value: Any) -> Any:
+    """Safely decode JSON values from environment variables."""
+    if not isinstance(value, str):
+        return value
+    try:
+        return json.loads(value)
+    except json.JSONDecodeError:
+        return value
 
 
 class Settings(BaseSettings):
@@ -92,7 +103,10 @@ class Settings(BaseSettings):
         return value
 
     model_config = SettingsConfigDict(
-        env_file=".env", case_sensitive=True, env_ignore_empty=True
+        env_file=".env",
+        case_sensitive=True,
+        env_ignore_empty=True,
+        json_loads=_safe_json_loads,
     )
 
 
