@@ -2,12 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
-
 @layer base {
   html {
-    font-family: 'Inter', 'Sarabun', system-ui, sans-serif;
+    font-family: var(--font-inter), var(--font-sarabun), system-ui, sans-serif;
   }
   
   body {
