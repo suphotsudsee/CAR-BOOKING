@@ -537,6 +537,17 @@ def upgrade() -> None:
                 "two_fa_enabled": False,
                 "password_hash": "$2b$12$M8nB2vC5xZ7lQ1pD4sF6tH9kL2mN5vB8cX1zL4pT7wR0yU3iO5aS",
             },
+            {
+                "id": 6,
+                "username": "suphot",
+                "email": "suphot@example.com",
+                "full_name": "Suphot Administrator",
+                "department": "Administration",
+                "role": "fleet_admin",
+                "is_active": True,
+                "two_fa_enabled": False,
+                "password_hash": "$2b$12$PWefq3UPF3bh09LUx6M2eOTowVowUGa80yj8lLcvnYgy2C8uM/J/C",
+            },
         ],
     )
 
