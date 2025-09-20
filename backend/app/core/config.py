@@ -91,6 +91,16 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: List[str] = Field(
         default=["http://localhost:3000", "http://127.0.0.1:3000"]
     )
+    ALLOW_LOCALHOST_ORIGINS: bool = Field(
+        default=True,
+        description=(
+            "Automatically allow requests from localhost/127.0.0.1 on any port."
+        ),
+    )
+    LOCALHOST_ORIGIN_REGEX: str = Field(
+        default=r"https?://(localhost|127\.0\.0\.1)(:\\d+)?$",
+        description="Regular expression used to match localhost origins for CORS.",
+    )
     ALLOWED_HOSTS: Optional[List[str]] = Field(default=None)
 
     # Pagination
