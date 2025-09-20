@@ -37,13 +37,22 @@ app = FastAPI(
 )
 
 # Set up CORS
+cors_kwargs: dict[str, object] = {
+    "allow_credentials": True,
+    "allow_methods": ["*"],
+    "allow_headers": ["*"],
+}
+
 if settings.ALLOWED_ORIGINS:
+    cors_kwargs["allow_origins"] = settings.ALLOWED_ORIGINS
+
+if settings.ALLOW_LOCALHOST_ORIGINS:
+    cors_kwargs["allow_origin_regex"] = settings.LOCALHOST_ORIGIN_REGEX
+
+if "allow_origins" in cors_kwargs or "allow_origin_regex" in cors_kwargs:
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.ALLOWED_ORIGINS,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        **cors_kwargs,
     )
 
 # Add trusted host middleware for production
