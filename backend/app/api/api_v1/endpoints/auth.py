@@ -85,16 +85,18 @@ async def login(
     access_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     refresh_expires = timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
 
+    role_value = user.role.value if isinstance(user.role, UserRole) else str(user.role)
+
     access_token = create_access_token(
         subject=str(user.id),
         username=user.username,
-        role=user.role.value,
+        role=role_value,
         expires_delta=access_expires,
     )
     refresh_token = create_refresh_token(
         subject=str(user.id),
         username=user.username,
-        role=user.role.value,
+        role=role_value,
         expires_delta=refresh_expires,
     )
 
@@ -153,10 +155,11 @@ async def refresh_access_token(
         )
 
     access_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    role_value = user.role.value if isinstance(user.role, UserRole) else str(user.role)
     new_access_token = create_access_token(
         subject=str(user.id),
         username=user.username,
-        role=user.role.value,
+        role=role_value,
         expires_delta=access_expires,
     )
 
