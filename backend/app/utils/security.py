@@ -25,7 +25,13 @@ def get_password_hash(password: str) -> str:
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Validate that *plain_password* matches *hashed_password*."""
-    return _pwd_context.verify(plain_password, hashed_password)
+    try:
+        return _pwd_context.verify(plain_password, hashed_password)
+    except (TypeError, ValueError):
+        # Passlib raises ``ValueError`` subclasses when the stored hash is malformed
+        # (for example, when legacy records contain plaintext passwords). Treat
+        # these cases as failed verifications instead of bubbling up a 500 error.
+        return False
 
 
 def _create_token(
