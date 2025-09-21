@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import RoleBasedAccess, get_current_user
@@ -32,6 +34,9 @@ from app.utils import (
     decode_token,
     verify_password,
 )
+
+_logger = logging.getLogger(__name__)
+
 
 router = APIRouter()
 
@@ -67,7 +72,15 @@ async def login(
     session: AsyncSession = Depends(get_async_session),
 ) -> TokenResponse:
     """Authenticate a user and issue JWT tokens."""
-    user = await get_user_by_username(session, request.username)
+    try:
+        user = await get_user_by_username(session, request.username)
+    except SQLAlchemyError as exc:
+        _logger.exception("Database error while fetching user '%s'", request.username)
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Authentication service temporarily unavailable",
+        ) from exc
 
     if user is None or not verify_password(request.password, user.password_hash):
         raise HTTPException(
@@ -140,7 +153,15 @@ async def refresh_access_token(
             headers={"WWW-Authenticate": "Bearer"},
         ) from exc
 
-    user = await get_user_by_id(session, user_id_int)
+    try:
+        user = await get_user_by_id(session, user_id_int)
+    except SQLAlchemyError as exc:
+        _logger.exception("Database error while fetching user id %s", user_id_int)
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Authentication service temporarily unavailable",
+        ) from exc
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
