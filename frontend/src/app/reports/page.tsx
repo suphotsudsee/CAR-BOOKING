@@ -7,6 +7,10 @@ import {
   BarChart3,
   CalendarClock,
   Factory,
+<<<<<<< HEAD
+=======
+  Filter,
+>>>>>>> bc57f41 (Initial CAR-BOOKING project)
   Fuel,
   Gauge,
   LineChart,
@@ -365,6 +369,10 @@ export default function ReportsPage() {
           <SectionCard
             title="ตัวกรองรายงาน"
             description="ปรับแต่งช่วงเวลาและหน่วยงานเพื่อสร้างรายงานแบบกำหนดเอง"
+<<<<<<< HEAD
+=======
+            icon={Filter}
+>>>>>>> bc57f41 (Initial CAR-BOOKING project)
             actions={
               <div className="flex items-center gap-2">
                 <button

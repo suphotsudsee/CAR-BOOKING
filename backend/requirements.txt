@@ -12,7 +12,10 @@ pymysql==1.1.0
 # Authentication and Security
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
+<<<<<<< HEAD
 bcrypt==4.0.1
+=======
+>>>>>>> bc57f41 (Initial CAR-BOOKING project)
 python-multipart==0.0.6
 
 # Data validation and serialization

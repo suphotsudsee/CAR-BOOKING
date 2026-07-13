@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 Exit code: 0
 Wall time: 0.6 seconds
 Output:
@@ -29,3 +30,30 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
 export default Providers;
 
+=======
+'use client';
+
+import { useEffect } from 'react';
+
+import { AuthProvider } from '@/context/AuthContext';
+import { registerServiceWorker } from '@/lib/pwa/client';
+
+function ServiceWorkerManager() {
+  useEffect(() => {
+    void registerServiceWorker();
+  }, []);
+
+  return null;
+}
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  return (
+    <AuthProvider>
+      <ServiceWorkerManager />
+      {children}
+    </AuthProvider>
+  );
+}
+
+export default Providers;
+>>>>>>> bc57f41 (Initial CAR-BOOKING project)
