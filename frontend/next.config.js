@@ -1,10 +1,15 @@
+const path = require('path');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  webpack(config) {
+    config.resolve.alias['@'] = path.resolve(__dirname, 'src');
+    return config;
+  },
   images: {
     domains: ['localhost'],
     unoptimized: process.env.NODE_ENV === 'development',
   },
-  // PWA configuration
   async headers() {
     return [
       {
@@ -18,7 +23,6 @@ const nextConfig = {
       },
     ];
   },
-  // API proxy for development
   async rewrites() {
     if (process.env.NODE_ENV === 'development') {
       return [
