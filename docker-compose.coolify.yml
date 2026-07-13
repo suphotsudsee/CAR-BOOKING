@@ -3,12 +3,19 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+<<<<<<< HEAD
       args:
         - NEXT_PUBLIC_API_URL=${SERVICE_FQDN_NGINX:-http://localhost}
     restart: unless-stopped
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_API_URL: ${SERVICE_FQDN_NGINX:-http://localhost}
+=======
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ""
+>>>>>>> cedd5cd (Add Coolify deployment configuration)
     depends_on:
       - backend
     networks:
@@ -62,11 +69,20 @@ services:
       - vehicle-booking-network
 
   nginx:
+<<<<<<< HEAD
     build:
       context: ./nginx
     restart: unless-stopped
     expose:
       - "80"
+=======
+    image: nginx:alpine
+    restart: unless-stopped
+    expose:
+      - "80"
+    volumes:
+      - ./nginx/coolify.conf:/etc/nginx/nginx.conf:ro
+>>>>>>> cedd5cd (Add Coolify deployment configuration)
     depends_on:
       - frontend
       - backend
