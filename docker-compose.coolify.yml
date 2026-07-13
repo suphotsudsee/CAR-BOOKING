@@ -60,12 +60,11 @@ services:
       - vehicle-booking-network
 
   nginx:
-    image: nginx:alpine
+    build:
+      context: ./nginx
     restart: unless-stopped
     expose:
       - "80"
-    volumes:
-      - ./nginx/coolify.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - frontend
       - backend
