@@ -7,7 +7,6 @@ import {
   BarChart3,
   CalendarClock,
   Factory,
-  Filter,
   Fuel,
   Gauge,
   LineChart,
