@@ -128,17 +128,21 @@ export function QuickActionButton({
 export interface SectionCardProps {
   title: string;
   description?: string;
+  icon?: LucideIcon;
   actions?: ReactNode;
   children: ReactNode;
   className?: string;
 }
 
-export function SectionCard({ title, description, actions, children, className }: SectionCardProps) {
+export function SectionCard({ title, description, icon: Icon, actions, children, className }: SectionCardProps) {
   return (
     <section className={clsx('rounded-2xl border border-gray-200 bg-white/80 p-6 shadow-sm backdrop-blur', className)}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h3 className="text-xl font-semibold text-gray-900">{title}</h3>
+          <h3 className="flex items-center gap-2 text-xl font-semibold text-gray-900">
+            {Icon && <Icon className="h-5 w-5 text-primary-600" aria-hidden="true" />}
+            {title}
+          </h3>
           {description && <p className="mt-1 text-sm text-gray-500">{description}</p>}
         </div>
         {actions && <div className="flex shrink-0 items-center gap-3">{actions}</div>}
