@@ -366,7 +366,6 @@ export default function ReportsPage() {
           <SectionCard
             title="ตัวกรองรายงาน"
             description="ปรับแต่งช่วงเวลาและหน่วยงานเพื่อสร้างรายงานแบบกำหนดเอง"
-            icon={Filter}
             actions={
               <div className="flex items-center gap-2">
                 <button
