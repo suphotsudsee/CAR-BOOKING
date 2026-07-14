@@ -1,5 +1,5 @@
 Exit code: 0
-Wall time: 0.6 seconds
+Wall time: 0.7 seconds
 Output:
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
