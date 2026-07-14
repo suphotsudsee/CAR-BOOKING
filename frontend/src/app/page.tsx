@@ -1,5 +1,5 @@
 Exit code: 0
-Wall time: 0.6 seconds
+Wall time: 0.9 seconds
 Output:
 "use client";
 
