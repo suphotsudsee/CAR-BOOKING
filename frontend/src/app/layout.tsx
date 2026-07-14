@@ -1,23 +1,13 @@
+Exit code: 0
+Wall time: 0.6 seconds
+Output:
 import type { Metadata, Viewport } from 'next';
-import { Inter, Sarabun } from 'next/font/google';
 import './globals.css';
 import Providers from './providers';
 
-const inter = Inter({
-  subsets: ['latin'],
-  weight: ['300', '400', '500', '600', '700'],
-  variable: '--font-inter',
-});
-
-const sarabun = Sarabun({
-  subsets: ['latin', 'thai'],
-  weight: ['300', '400', '500', '600', '700'],
-  variable: '--font-sarabun',
-});
-
 export const metadata: Metadata = {
   title: 'Office Vehicle Booking System',
-  description: 'ระบบจองรถสำนักงาน - Vehicle booking and management system',
+  description: 'เธฃเธฐเธเธเธเธญเธเธฃเธ–เธชเธณเธเธฑเธเธเธฒเธ - Vehicle booking and management system',
   manifest: '/manifest.json',
 };
 
@@ -34,7 +24,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="th" className={`${inter.variable} ${sarabun.variable}`}>
+    <html lang="th">
       <body>
         <Providers>
           <div id="root">{children}</div>
@@ -43,3 +33,4 @@ export default function RootLayout({
     </html>
   );
 }
+
