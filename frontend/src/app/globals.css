@@ -1,10 +1,13 @@
+Exit code: 0
+Wall time: 0.5 seconds
+Output:
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   html {
-    font-family: var(--font-inter), var(--font-sarabun), system-ui, sans-serif;
+    font-family: "Noto Sans Thai", Tahoma, "Segoe UI", system-ui, sans-serif;
   }
   
   body {
@@ -63,3 +66,4 @@
     text-wrap: balance;
   }
 }
+
