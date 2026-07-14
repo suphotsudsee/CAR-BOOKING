@@ -1,3 +1,6 @@
+Exit code: 0
+Wall time: 0.5 seconds
+Output:
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
@@ -70,10 +73,10 @@ module.exports = {
         },
       },
       fontFamily: {
-        sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],
+        sans: ['"Segoe UI"', 'Tahoma', 'system-ui', 'sans-serif'],
         thai: [
-          'var(--font-sarabun)',
-          'var(--font-inter)',
+          '"Noto Sans Thai"',
+          'Tahoma',
           'system-ui',
           'sans-serif',
         ],
@@ -108,3 +111,4 @@ module.exports = {
     require('@tailwindcss/typography'),
   ],
 };
+
