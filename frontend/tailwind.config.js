@@ -1,5 +1,5 @@
 Exit code: 0
-Wall time: 0.5 seconds
+Wall time: 0.7 seconds
 Output:
 /** @type {import('tailwindcss').Config} */
 module.exports = {
