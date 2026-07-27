@@ -75,7 +75,7 @@ Output:
 
 @layer base {
   html {
-    font-family: var(--font-inter), var(--font-sarabun), system-ui, sans-serif;
+    font-family: "Noto Sans Thai", Tahoma, "Segoe UI", system-ui, sans-serif;
   }
   
   body {
@@ -134,4 +134,7 @@ Output:
     text-wrap: balance;
   }
 }
+<<<<<<< HEAD
 >>>>>>> bc57f41 (Initial CAR-BOOKING project)
+=======
+>>>>>>> e082ac5 (test)

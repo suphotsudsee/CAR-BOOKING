@@ -35,6 +35,7 @@ export default Providers;
 
 import { useEffect } from 'react';
 
+import { WorkspaceNavigation } from '@/components/layout/WorkspaceNavigation';
 import { AuthProvider } from '@/context/AuthContext';
 import { registerServiceWorker } from '@/lib/pwa/client';
 
@@ -50,6 +51,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <AuthProvider>
       <ServiceWorkerManager />
+      <WorkspaceNavigation />
       {children}
     </AuthProvider>
   );

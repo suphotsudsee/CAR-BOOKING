@@ -136,7 +136,6 @@ export default function HomePage() {
 "use client";
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { AppShell } from '@/components/layout/AppShell';
@@ -146,15 +145,9 @@ import { useNotificationCenter } from '@/components/notifications/useNotificatio
 import { useAuth } from '@/context/AuthContext';
 
 export default function HomePage() {
-  const router = useRouter();
-  const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const notificationController = useNotificationCenter();
   const [drawerOpen, setDrawerOpen] = useState(false);
-
-  const handleLogout = () => {
-    logout();
-    router.push('/');
-  };
 
   const guestContent = (
     <div className="flex flex-col gap-6">
@@ -258,15 +251,13 @@ export default function HomePage() {
 
   return (
     <>
-      <AppShell
-        isAuthenticated={isAuthenticated}
-        fullName={user?.fullName}
-        unreadCount={notificationController.unreadCount}
-        onOpenNotifications={() => setDrawerOpen(true)}
-        onLogout={handleLogout}
-      >
-        {isAuthenticated ? authenticatedContent : guestContent}
-      </AppShell>
+      {isAuthenticated ? (
+        <main className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-secondary-50 px-4 py-8 sm:px-6 sm:py-10">
+          <div className="mx-auto w-full max-w-5xl">{authenticatedContent}</div>
+        </main>
+      ) : (
+        <AppShell isAuthenticated={false}>{guestContent}</AppShell>
+      )}
 
       <MobileNotificationDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)}>
         <NotificationCenter controller={notificationController} />

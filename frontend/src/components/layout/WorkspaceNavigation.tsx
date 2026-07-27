@@ -1,6 +1,9 @@
+<<<<<<< HEAD
 Exit code: 0
 Wall time: 0.9 seconds
 Output:
+=======
+>>>>>>> e082ac5 (test)
 'use client';
 
 import {
@@ -31,6 +34,7 @@ interface WorkspaceTab {
 }
 
 const workspaceTabs: WorkspaceTab[] = [
+<<<<<<< HEAD
   { href: '/', label: 'เธซเธเนเธฒเธซเธฅเธฑเธ', group: 'เธ เธฒเธเธฃเธงเธก', icon: Archive },
   { href: '/dashboard', label: 'เนเธ”เธเธเธญเธฃเนเธ”', group: 'เธ เธฒเธเธฃเธงเธก', icon: LayoutDashboard },
   {
@@ -53,17 +57,50 @@ const workspaceTabs: WorkspaceTab[] = [
     href: '/reports',
     label: 'เธฃเธฒเธขเธเธฒเธ',
     group: 'เธเนเธญเธกเธนเธฅ',
+=======
+  { href: '/', label: 'หน้าหลัก', group: 'ภาพรวม', icon: Archive },
+  { href: '/dashboard', label: 'แดชบอร์ด', group: 'ภาพรวม', icon: LayoutDashboard },
+  {
+    href: '/bookings/new',
+    label: 'สร้างคำขอ',
+    group: 'งานจองรถ',
+    icon: FilePlus2,
+    roles: [USER_ROLES.REQUESTER, USER_ROLES.MANAGER, USER_ROLES.FLEET_ADMIN],
+  },
+  { href: '/bookings', label: 'รายการจอง', group: 'งานจองรถ', icon: Files },
+  {
+    href: '/bookings/approvals',
+    label: 'งานอนุมัติ',
+    group: 'งานจองรถ',
+    icon: ClipboardCheck,
+    roles: [USER_ROLES.MANAGER, USER_ROLES.FLEET_ADMIN],
+  },
+  { href: '/calendar', label: 'ปฏิทินรถ', group: 'ตารางงาน', icon: CalendarDays },
+  {
+    href: '/reports',
+    label: 'รายงาน',
+    group: 'ข้อมูล',
+>>>>>>> e082ac5 (test)
     icon: BarChart3,
     roles: [USER_ROLES.MANAGER, USER_ROLES.FLEET_ADMIN, USER_ROLES.AUDITOR],
   },
   {
     href: '/admin/2fa',
+<<<<<<< HEAD
     label: 'เธเธงเธฒเธกเธเธฅเธญเธ”เธ เธฑเธข',
     group: 'เธ•เธฑเนเธเธเนเธฒเธฃเธฐเธเธ',
     icon: ShieldCheck,
     roles: [USER_ROLES.MANAGER, USER_ROLES.FLEET_ADMIN],
   },
   { href: '/profile', label: 'เนเธเธฃเนเธเธฅเน', group: 'เธเธฑเธเธเธตเธเธญเธเธเธฑเธ', icon: UserRound },
+=======
+    label: 'ความปลอดภัย',
+    group: 'ตั้งค่าระบบ',
+    icon: ShieldCheck,
+    roles: [USER_ROLES.MANAGER, USER_ROLES.FLEET_ADMIN],
+  },
+  { href: '/profile', label: 'โปรไฟล์', group: 'บัญชีของฉัน', icon: UserRound },
+>>>>>>> e082ac5 (test)
 ];
 
 function matchesPath(pathname: string, href: string) {
@@ -107,10 +144,17 @@ export function WorkspaceNavigation() {
           <div className="min-w-0">
             <div className="flex items-center gap-2 text-slate-900">
               <Archive className="h-5 w-5 shrink-0 text-amber-700" aria-hidden="true" />
+<<<<<<< HEAD
               <p className="truncate text-base font-bold sm:text-lg">เธ•เธนเนเน€เธญเธเธชเธฒเธฃเธเธฒเธเธฃเธ–</p>
             </div>
             <p className="mt-0.5 truncate text-xs text-slate-500">
               เน€เธฅเธทเธญเธเนเธเนเธกเธเธฒเธเธ—เธตเนเธ•เนเธญเธเธเธฒเธฃเน€เธเธดเธ” โ€ข {user.fullName}
+=======
+              <p className="truncate text-base font-bold sm:text-lg">ตู้เอกสารงานรถ</p>
+            </div>
+            <p className="mt-0.5 truncate text-xs text-slate-500">
+              เลือกแฟ้มงานที่ต้องการเปิด • {user.fullName}
+>>>>>>> e082ac5 (test)
             </p>
           </div>
 
@@ -120,11 +164,19 @@ export function WorkspaceNavigation() {
             className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-700 sm:text-sm"
           >
             <LogOut className="h-4 w-4" aria-hidden="true" />
+<<<<<<< HEAD
             <span className="hidden sm:inline">เธญเธญเธเธเธฒเธเธฃเธฐเธเธ</span>
           </button>
         </div>
 
         <nav aria-label="เนเธเนเธกเธเธฒเธเธ—เธฑเนเธเธซเธกเธ”">
+=======
+            <span className="hidden sm:inline">ออกจากระบบ</span>
+          </button>
+        </div>
+
+        <nav aria-label="แฟ้มงานทั้งหมด">
+>>>>>>> e082ac5 (test)
           <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 md:grid-cols-5 xl:grid-cols-9">
             {visibleTabs.map((tab) => {
               const Icon = tab.icon;
@@ -164,4 +216,7 @@ export function WorkspaceNavigation() {
   );
 }
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> e082ac5 (test)

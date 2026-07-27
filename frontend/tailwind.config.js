@@ -70,10 +70,10 @@ module.exports = {
         },
       },
       fontFamily: {
-        sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],
+        sans: ['"Segoe UI"', 'Tahoma', 'system-ui', 'sans-serif'],
         thai: [
-          'var(--font-sarabun)',
-          'var(--font-inter)',
+          '"Noto Sans Thai"',
+          'Tahoma',
           'system-ui',
           'sans-serif',
         ],
