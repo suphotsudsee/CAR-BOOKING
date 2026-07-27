@@ -20,6 +20,9 @@ ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 # ========================================================
 
+# เพิ่ม Memory ให้ Node.js กัน Webpack Out of Memory
+ENV NODE_OPTIONS="--max-old-space-size=2048"
+
 RUN npm run build
 
 # Production image, copy all the files and run next
