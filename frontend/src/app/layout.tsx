@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 "use client";
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
@@ -33,7 +32,6 @@ export default function RootLayout({
   );
 }
 
-=======
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import Providers from './providers';
@@ -66,7 +64,3 @@ export default function RootLayout({
     </html>
   );
 }
-<<<<<<< HEAD
->>>>>>> bc57f41 (Initial CAR-BOOKING project)
-=======
->>>>>>> e082ac5 (test)
